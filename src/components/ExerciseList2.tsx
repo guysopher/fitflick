@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo } from 'react';
 import { exercises, exerciseCategories, difficultyLevels, Exercise } from '@/data/exercises';
-import ExerciseAnimation from './ExerciseAnimation';
 
 interface ExerciseCardProps {
   exercise: Exercise;
@@ -102,11 +101,6 @@ export default function ExerciseList() {
             Discover 100 powerful exercises perfect for high-intensity tabata workouts. 
             Build strength, endurance, and agility with our comprehensive exercise collection.
           </p>
-        </div>
-
-        {/* 3D Exercise Animation */}
-        <div className="mb-12">
-          <ExerciseAnimation currentExercise={exercises[0]} />
         </div>
 
         {/* Filters */}
