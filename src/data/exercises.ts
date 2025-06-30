@@ -370,6 +370,12 @@ const exercises: Exercise[] = [
   }
 ];
 
+// Derived arrays for filtering
+export const exerciseCategories = Array.from(new Set(exercises.map(exercise => exercise.category))).sort();
+export const difficultyLevels: ('Beginner' | 'Intermediate' | 'Advanced')[] = ['Beginner', 'Intermediate', 'Advanced'];
+
+export { exercises };
+
 export const beginnerToAdvancedWorkout: Workout = {
   id: 1,
   name: 'Shahar’s Full-Body Progression',

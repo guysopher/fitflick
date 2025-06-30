@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Shahar's Workout Adventure",
+  title: "Shahar&apos;s Workout Adventure",
   description: "A fun gamified workout app for kids with Zumba the dog and friends!",
   manifest: "/manifest.json",
   themeColor: "#EC4899",

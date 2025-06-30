@@ -2,6 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Droplets, Share, Play, Pause, RotateCcw, Volume2, VolumeX, Flame, Target } from 'lucide-react';
+import { exercises, Exercise } from '@/data/exercises';
+import { videos } from '@/data/videos';
 
 interface UserProgress {
   level: number;
@@ -15,49 +17,26 @@ interface UserProgress {
   currentCostume: string;
 }
 
-interface Workout {
-  id: string;
-  name: string;
-  duration: number; // in minutes
-  videoUrl: string;
-  difficulty: 'Easy' | 'Medium' | 'Hard';
-  coinsReward: number;
-  description: string;
-  unlockLevel: number;
-}
+// Helper function to get video metadata
+const getVideoMetadata = (videoFileName: string) => {
+  const fileName = videoFileName.replace('/videos/', '');
+  return videos.find(video => video.filename === fileName);
+};
 
-const workouts: Workout[] = [
-  {
-    id: 'zumba-zoom',
-    name: 'Zumba Zoom',
-    duration: 15,
-    videoUrl: '/videos/zumba-zoom.mp4',
-    difficulty: 'Easy',
-    coinsReward: 50,
-    description: 'Dance and jump with Zumba! Perfect for beginners.',
-    unlockLevel: 1
-  },
-  {
-    id: 'hamster-hop',
-    name: 'Hamster Hop',
-    duration: 18,
-    videoUrl: '/videos/hamster-hop.mp4',
-    difficulty: 'Easy',
-    coinsReward: 60,
-    description: 'Hop around like our energetic hamster friend!',
-    unlockLevel: 2
-  },
-  {
-    id: 'tail-wag-twists',
-    name: 'Tail Wag Twists',
-    duration: 20,
-    videoUrl: '/videos/tail-wag-twists.mp4',
-    difficulty: 'Medium',
-    coinsReward: 80,
-    description: 'Twist and turn with Zumba\'s signature moves!',
-    unlockLevel: 3
-  }
-];
+// Helper function to calculate coins reward based on difficulty and duration
+const calculateCoinsReward = (difficulty: string, duration: string) => {
+  const baseReward = 30;
+  const difficultyMultiplier = {
+    'Beginner': 1,
+    'Intermediate': 1.5,
+    'Advanced': 2
+  };
+  
+  const durationInSeconds = parseInt(duration) || 30;
+  const durationBonus = Math.floor(durationInSeconds / 10) * 5;
+  
+  return Math.floor(baseReward * (difficultyMultiplier[difficulty as keyof typeof difficultyMultiplier] || 1) + durationBonus);
+};
 
 const jokes = [
   "Why don't hamsters ever get lost? Because they always know which wheel to turn! 🐹",
@@ -68,13 +47,12 @@ const jokes = [
 ];
 
 interface TikTokVideoPlayerProps {
-  workout: Workout;
-  userProgress: UserProgress;
+  exercise: Exercise;
   onWorkoutComplete: () => void;
   onClose: () => void;
 }
 
-function TikTokVideoPlayer({ workout, userProgress, onWorkoutComplete, onClose }: TikTokVideoPlayerProps) {
+function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -82,9 +60,16 @@ function TikTokVideoPlayer({ workout, userProgress, onWorkoutComplete, onClose }
   const [isMuted, setIsMuted] = useState(false);
   const [workoutProgress, setWorkoutProgress] = useState(0);
 
+  // Get video metadata for speed adjustment
+  const videoMetadata = getVideoMetadata(exercise.videoUrl);
+  const videoSpeed = videoMetadata?.video_speed || 1.0;
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+
+    // Set video playback speed
+    video.playbackRate = videoSpeed;
 
     const handleTimeUpdate = () => {
       setCurrentTime(video.currentTime);
@@ -108,7 +93,7 @@ function TikTokVideoPlayer({ workout, userProgress, onWorkoutComplete, onClose }
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('loadeddata', handleLoadedData);
     };
-  }, [onWorkoutComplete]);
+  }, [onWorkoutComplete, videoSpeed]);
 
   const togglePlay = () => {
     const video = videoRef.current;
@@ -144,22 +129,33 @@ function TikTokVideoPlayer({ workout, userProgress, onWorkoutComplete, onClose }
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty) {
+      case 'Beginner': return 'bg-green-500';
+      case 'Intermediate': return 'bg-yellow-500';
+      case 'Advanced': return 'bg-red-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const coinsReward = calculateCoinsReward(exercise.difficulty, exercise.duration);
+
   return (
     <div className="fixed inset-0 bg-black z-50">
       {/* Video Background */}
       <video
         ref={videoRef}
-        src={workout.videoUrl}
+        src={exercise.videoUrl}
         className="w-full h-full object-cover"
         loop
         playsInline
         onClick={togglePlay}
       />
 
-      {/* Top Overlay - Workout Info */}
+      {/* Top Overlay - Exercise Info */}
       <div className="absolute top-0 left-0 right-0 z-40 bg-gradient-to-b from-black/60 to-transparent p-4 pb-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-white">{workout.name}</h2>
+          <h2 className="text-2xl font-bold text-white">{exercise.name}</h2>
           <button
             onClick={onClose}
             className="w-10 h-10 bg-black/50 rounded-full flex items-center justify-center text-white text-xl"
@@ -170,14 +166,26 @@ function TikTokVideoPlayer({ workout, userProgress, onWorkoutComplete, onClose }
         
         <div className="flex items-center gap-4 mb-3">
           <span className="bg-white/20 px-3 py-1 rounded-full text-sm text-white font-medium">
-            {workout.duration} min
+            {exercise.duration}
           </span>
           <span className="bg-white/20 px-3 py-1 rounded-full text-sm text-white font-medium">
-            +{workout.coinsReward} coins
+            +{coinsReward} coins
           </span>
-          <span className="bg-white/20 px-3 py-1 rounded-full text-sm text-white font-medium">
-            {workout.difficulty}
+          <span className={`px-3 py-1 rounded-full text-sm text-white font-medium ${getDifficultyColor(exercise.difficulty)}`}>
+            {exercise.difficulty}
           </span>
+        </div>
+
+        {/* Target Muscles */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          {exercise.targetMuscles.map((muscle, index) => (
+            <span 
+              key={index}
+              className="bg-white/20 px-2 py-1 rounded-full text-xs text-white"
+            >
+              {muscle}
+            </span>
+          ))}
         </div>
 
         {/* Progress Bar */}
@@ -196,92 +204,44 @@ function TikTokVideoPlayer({ workout, userProgress, onWorkoutComplete, onClose }
         </div>
       </div>
 
-      {/* Side Character Motivations */}
-      <div className="absolute right-4 top-1/3 z-40 space-y-4">
-        {/* Zumba Motivation */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3 max-w-48">
-          <div className="flex items-center gap-2 mb-2">
-            {/* Custom Zumba character */}
-            <div className="w-8 h-8 bg-gradient-to-b from-yellow-300 to-yellow-500 rounded-full relative">
-              <div className="absolute top-1 left-1/2 transform -translate-x-1/2">
-                <div className="flex gap-1">
-                  <div className="w-1 h-1 bg-black rounded-full"></div>
-                  <div className="w-1 h-1 bg-black rounded-full"></div>
-                </div>
-              </div>
-            </div>
-            <span className="font-bold text-gray-800 text-sm">Zumba</span>
-          </div>
-          <p className="text-gray-700 text-xs">
-            &quot;You&apos;re doing amazing, Shahar! Keep moving those paws! 🎵&quot;
-          </p>
-        </div>
-
-        {/* Pip Encouragement */}
-        <div className="bg-sky-100/90 backdrop-blur-sm rounded-2xl p-3 max-w-48">
-          <div className="flex items-center gap-2 mb-2">
-            {/* Custom Pip character */}
-            <div className="w-8 h-8 bg-gradient-to-b from-sky-300 to-sky-500 rounded-full relative">
-              <div className="absolute top-1.5 left-1/2 transform -translate-x-1/2">
-                <div className="flex gap-0.5">
-                  <div className="w-0.5 h-0.5 bg-black rounded-full"></div>
-                  <div className="w-0.5 h-0.5 bg-black rounded-full"></div>
-                </div>
-              </div>
-            </div>
-            <span className="font-bold text-gray-800 text-sm">Pip</span>
-          </div>
-          <p className="text-gray-700 text-xs">
-            &quot;Don&apos;t forget to drink water! 💧 You&apos;re my workout hero!&quot;
-          </p>
+      {/* Side Exercise Instructions */}
+      <div className="absolute right-4 top-1/3 z-40 space-y-4 max-w-xs">
+        <div className="bg-black/50 rounded-lg p-4 text-white">
+          <h3 className="font-bold text-lg mb-2">Instructions</h3>
+          <ul className="space-y-1 text-sm">
+            {exercise.instructions.map((instruction, index) => (
+              <li key={index} className="flex items-start">
+                <span className="text-blue-400 mr-2 mt-1">•</span>
+                {instruction}
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
-      {/* Center Play/Pause */}
-      {!isPlaying && (
-        <div className="absolute inset-0 flex items-center justify-center z-30">
+      {/* Bottom Control Bar */}
+      <div className="absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black/60 to-transparent p-4 pt-8">
+        <div className="flex items-center justify-center space-x-6">
+          <button
+            onClick={restartVideo}
+            className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+          >
+            <RotateCcw size={24} />
+          </button>
+          
           <button
             onClick={togglePlay}
-            className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center"
+            className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
           >
-            <Play className="w-8 h-8 text-white ml-1" fill="white" />
+            {isPlaying ? <Pause size={32} /> : <Play size={32} />}
           </button>
-        </div>
-      )}
-
-      {/* Bottom Controls */}
-      <div className="absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black/60 to-transparent p-4 pt-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={togglePlay}
-              className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white"
-            >
-              {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-1" />}
-            </button>
-            
-            <button
-              onClick={restartVideo}
-              className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white"
-            >
-              <RotateCcw className="w-5 h-5" />
-            </button>
-
-            <button
-              onClick={toggleMute}
-              className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white"
-            >
-              {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-            </button>
-          </div>
-
-          {/* Streak Display */}
-          <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-full px-4 py-2">
-            <div className="flex items-center gap-2 text-white">
-              <span className="text-lg">🔥</span>
-              <span className="font-bold text-sm">{userProgress.streak} day streak!</span>
-            </div>
-          </div>
+          
+          <button
+            onClick={toggleMute}
+            className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+          >
+            {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+          </button>
         </div>
       </div>
     </div>
@@ -289,8 +249,8 @@ function TikTokVideoPlayer({ workout, userProgress, onWorkoutComplete, onClose }
 }
 
 export default function GameWorkoutApp() {
-  const [currentScreen, setCurrentScreen] = useState<'home' | 'workout' | 'complete' | 'profile'>('home');
-  const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
+  const [currentScreen, setCurrentScreen] = useState<'home' | 'workout' | 'complete' | 'profile' | 'exercises'>('home');
+  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [showJoke, setShowJoke] = useState(false);
   const [todayJoke, setTodayJoke] = useState('');
   
@@ -312,18 +272,18 @@ export default function GameWorkoutApp() {
     setTodayJoke(randomJoke);
   }, []);
 
-  const handleWorkoutStart = (workout: Workout) => {
-    setSelectedWorkout(workout);
+  const handleWorkoutStart = (exercise: Exercise) => {
+    setSelectedExercise(exercise);
     setCurrentScreen('workout');
   };
 
   const handleWorkoutComplete = () => {
-    if (!selectedWorkout) return;
+    if (!selectedExercise) return;
     
     // Update user progress
     setUserProgress(prev => ({
       ...prev,
-      coins: prev.coins + selectedWorkout.coinsReward,
+      coins: prev.coins + calculateCoinsReward(selectedExercise.difficulty, selectedExercise.duration),
       totalWorkouts: prev.totalWorkouts + 1,
       streak: prev.streak + 1,
       lastWorkout: new Date().toISOString().split('T')[0]
@@ -342,7 +302,7 @@ export default function GameWorkoutApp() {
   };
 
   const shareWorkout = () => {
-    const message = `🎉 Shahar just crushed it with ${selectedWorkout?.name}! 💪 ${userProgress.streak} day streak and counting! 🔥`;
+    const message = `🎉 Shahar just crushed it with ${selectedExercise?.name}! 💪 ${userProgress.streak} day streak and counting! 🔥`;
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
@@ -460,17 +420,27 @@ export default function GameWorkoutApp() {
             </div>
           </div>
 
-          {/* Ready to Move Section */}
+          {/* Exercise Selection */}
           <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 shadow-sm">
             <div className="text-center mb-4">
-              <h3 className="text-xl font-bold text-emerald-700 mb-2">Ready to Move?</h3>
-              <p className="text-emerald-800">A new fitness adventure is waiting for you!</p>
+              <h3 className="text-xl font-bold text-emerald-700 mb-2">Choose Your Exercise</h3>
+              <p className="text-emerald-800">Pick from {exercises.length} amazing exercises!</p>
             </div>
+            
+            {/* Quick Start - First Exercise */}
             <button
-              onClick={() => handleWorkoutStart(workouts[0])}
-              className="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 rounded-xl shadow-lg transform hover:scale-105 transition-all"
+              onClick={() => handleWorkoutStart(exercises[0])}
+              className="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 rounded-xl shadow-lg transform hover:scale-105 transition-all mb-3"
             >
-              Let&apos;s Go! 🚀
+              Quick Start: {exercises[0].name} 🚀
+            </button>
+            
+            {/* View All Exercises Button */}
+            <button
+              onClick={() => setCurrentScreen('exercises')}
+              className="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 rounded-xl shadow-lg transform hover:scale-105 transition-all"
+            >
+              View All Exercises 📋
             </button>
           </div>
 
@@ -497,16 +467,94 @@ export default function GameWorkoutApp() {
     );
   }
 
-  // Workout Screen
-  if (currentScreen === 'workout' && selectedWorkout) {
+  // Exercises Selection Screen
+  if (currentScreen === 'exercises') {
+    const getDifficultyColor = (difficulty: string) => {
+      switch (difficulty) {
+        case 'Beginner': return 'bg-green-100 text-green-800 border-green-200';
+        case 'Intermediate': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        case 'Advanced': return 'bg-red-100 text-red-800 border-red-200';
+        default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      }
+    };
+
     return (
-      <TikTokVideoPlayer
-        workout={selectedWorkout}
-        userProgress={userProgress}
-        onWorkoutComplete={handleWorkoutComplete}
-        onClose={() => setCurrentScreen('home')}
-      />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        {/* Header */}
+        <div className="bg-white/20 backdrop-blur-sm border-b border-white/30 sticky top-0 z-10">
+          <div className="px-4 py-4 flex items-center">
+            <button
+              onClick={() => setCurrentScreen('home')}
+              className="mr-4 text-gray-700 hover:text-gray-900"
+            >
+              ← Back
+            </button>
+            <h1 className="text-gray-800 font-bold text-lg">Choose Your Exercise</h1>
+          </div>
+        </div>
+
+        {/* Exercise Grid */}
+        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {exercises.map((exercise) => (
+            <div 
+              key={exercise.id}
+              className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 p-4 border border-gray-100 hover:border-blue-200 cursor-pointer transform hover:-translate-y-1"
+              onClick={() => handleWorkoutStart(exercise)}
+            >
+              <div className="flex items-start justify-between mb-3">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2 flex-1">{exercise.name}</h3>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getDifficultyColor(exercise.difficulty)} ml-2`}>
+                  {exercise.difficulty}
+                </span>
+              </div>
+              
+              <p className="text-gray-600 text-sm mb-3 line-clamp-2">{exercise.description}</p>
+              
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-gray-500">{exercise.duration}</span>
+                <span className="text-sm text-gray-500">{exercise.category}</span>
+              </div>
+              
+              <div className="flex flex-wrap gap-1">
+                {exercise.targetMuscles.slice(0, 3).map((muscle, index) => (
+                  <span 
+                    key={index}
+                    className="px-2 py-1 bg-gray-50 text-gray-700 rounded-md text-xs font-medium"
+                  >
+                    {muscle}
+                  </span>
+                ))}
+                {exercise.targetMuscles.length > 3 && (
+                  <span className="px-2 py-1 bg-gray-50 text-gray-700 rounded-md text-xs font-medium">
+                    +{exercise.targetMuscles.length - 3} more
+                  </span>
+                )}
+              </div>
+              
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Reward:</span>
+                  <span className="text-sm font-semibold text-yellow-600">
+                    +{calculateCoinsReward(exercise.difficulty, exercise.duration)} coins
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     );
+  }
+
+  // Workout Screen
+  if (currentScreen === 'workout' && selectedExercise) {
+          return (
+        <TikTokVideoPlayer
+          exercise={selectedExercise}
+          onWorkoutComplete={handleWorkoutComplete}
+          onClose={() => setCurrentScreen('home')}
+        />
+      );
   }
 
   // Workout Complete Screen
@@ -517,13 +565,13 @@ export default function GameWorkoutApp() {
           <div className="text-6xl mb-4">🎉</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Amazing Job!</h2>
           <p className="text-gray-600 mb-4">
-            You completed {selectedWorkout?.name} and earned {selectedWorkout?.coinsReward} coins!
+            You completed {selectedExercise?.name} and earned {calculateCoinsReward(selectedExercise?.difficulty || '', selectedExercise?.duration || '')} coins!
           </p>
           
           {/* Rewards */}
           <div className="bg-yellow-100 rounded-2xl p-4 mb-4">
             <div className="text-3xl mb-2">🏆</div>
-            <p className="text-yellow-700 font-semibold">+{selectedWorkout?.coinsReward} Coins</p>
+            <p className="text-yellow-700 font-semibold">+{calculateCoinsReward(selectedExercise?.difficulty || '', selectedExercise?.duration || '')} Coins</p>
             <p className="text-yellow-600 text-sm">Streak: {userProgress.streak} days! 🔥</p>
           </div>
 
@@ -532,7 +580,7 @@ export default function GameWorkoutApp() {
             <div className="bg-pink-100 rounded-2xl p-4 mb-6">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xl">🐹</span>
-                <span className="font-bold text-pink-700">Hammy's Daily Joke</span>
+                <span className="font-bold text-pink-700">Hammy&apos;s Daily Joke</span>
               </div>
               <p className="text-pink-600 text-sm">{todayJoke}</p>
             </div>
@@ -572,7 +620,7 @@ export default function GameWorkoutApp() {
             >
               ← Back
             </button>
-            <h1 className="text-white font-bold text-lg">Shahar's Profile</h1>
+            <h1 className="text-white font-bold text-lg">Shahar&apos;s Profile</h1>
           </div>
         </div>
 

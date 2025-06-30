@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
+import { videos } from '@/data/videos';
 
 interface ExerciseVideoProps {
   exercise: {
@@ -17,6 +18,12 @@ interface ExerciseVideoProps {
   className?: string;
 }
 
+// Helper function to get video metadata
+const getVideoMetadata = (videoFileName: string) => {
+  const fileName = videoFileName.replace('/videos/', '');
+  return videos.find(video => video.filename === fileName);
+};
+
 export default function ExerciseVideo({ 
   exercise, 
   autoPlay = false, 
@@ -30,9 +37,16 @@ export default function ExerciseVideo({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Get video metadata for speed adjustment
+  const videoMetadata = getVideoMetadata(exercise.videoUrl);
+  const videoSpeed = videoMetadata?.video_speed || 1.0;
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+
+    // Set video playback speed
+    video.playbackRate = videoSpeed;
 
     const handleLoadedData = () => {
       setIsLoading(false);
@@ -63,7 +77,7 @@ export default function ExerciseVideo({
       video.removeEventListener('pause', handlePause);
       video.removeEventListener('error', handleError);
     };
-  }, []);
+  }, [videoSpeed]);
 
   const togglePlayPause = () => {
     const video = videoRef.current;
