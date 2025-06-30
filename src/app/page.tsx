@@ -1,5 +1,5 @@
-import GameWorkoutApp from '@/components/GameWorkoutApp'
+import FitnessCalendarApp from '@/components/FitnessCalendarApp'
 
 export default function Home() {
-  return <GameWorkoutApp />
+  return <FitnessCalendarApp />
 } 

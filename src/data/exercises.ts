@@ -1,6 +1,6 @@
 // exercises.ts
 // One self-contained workout featuring all 14 custom video drills,
-// ordered from easiest to most difficult for a 10-year-old user.
+// structured for Tabata-style training (20 seconds work, 10 seconds rest)
 
 export interface Exercise {
   id: number;
@@ -16,10 +16,19 @@ export interface Exercise {
   benefits: string[];
 }
 
+export interface TabataRound {
+  exercises: [Exercise, Exercise]; // Pair of exercises
+  rounds: number; // Number of complete cycles (each cycle = exercise1, rest, exercise2, rest)
+}
+
 export interface Workout {
   id: number;
   name: string;
   exercises: Exercise[];
+  tabataStructure?: TabataRound[];
+  workDuration: string;
+  restDuration: string;
+  totalDuration: string;
 }
 
 const exercises: Exercise[] = [
@@ -29,7 +38,7 @@ const exercises: Exercise[] = [
     description:
       'Stand upright with feet hip-width apart, arms relaxed at sides, shoulders back and tummy gently tight. Use this as the perfect posture check before any move.',
     videoUrl: '/videos/Standard Mode Animation Video.mp4',
-    duration: '15 seconds',
+    duration: '20 seconds',
     difficulty: 'Beginner',
     targetMuscles: ['Posture', 'Core stabilisers'],
     category: 'Warm-up',
@@ -43,7 +52,7 @@ const exercises: Exercise[] = [
     benefits: [
       'Promotes good posture',
       'Activates core gently',
-      'Sets a “ready” mindset'
+      'Sets a "ready" mindset'
     ]
   },
   {
@@ -52,7 +61,7 @@ const exercises: Exercise[] = [
     description:
       'Jump feet wide while clapping hands overhead, then jump back to start in one smooth rhythm.',
     videoUrl: '/videos/Jumping Jacks.mp4',
-    duration: '30 seconds',
+    duration: '20 seconds',
     difficulty: 'Beginner',
     targetMuscles: ['Full Body', 'Cardio system'],
     category: 'Cardio',
@@ -75,7 +84,7 @@ const exercises: Exercise[] = [
     description:
       'Jog on the spot, lifting feet a few centimetres off the floor and pumping arms like outdoor running.',
     videoUrl: '/videos/Running in Place.mp4',
-    duration: '30 seconds',
+    duration: '20 seconds',
     difficulty: 'Beginner',
     targetMuscles: ['Legs', 'Core', 'Cardio system'],
     category: 'Cardio',
@@ -96,9 +105,9 @@ const exercises: Exercise[] = [
     id: 4,
     name: 'Jumping Rope (Imaginary)',
     description:
-      'Small rhythmic hops while twirling an “air” jump rope with the wrists.',
+      'Small rhythmic hops while twirling an "air" jump rope with the wrists.',
     videoUrl: '/videos/Jumping Rope.mp4',
-    duration: '30 seconds',
+    duration: '20 seconds',
     difficulty: 'Beginner',
     targetMuscles: ['Calves', 'Shoulders', 'Cardio system'],
     category: 'Cardio',
@@ -144,7 +153,7 @@ const exercises: Exercise[] = [
     description:
       'Run on the spot while lifting each knee toward the belly button for a cardio-core combo.',
     videoUrl: '/videos/Knees to Chest.mp4',
-    duration: '30 seconds',
+    duration: '20 seconds',
     difficulty: 'Beginner',
     targetMuscles: ['Hip Flexors', 'Core', 'Cardio system'],
     category: 'Cardio',
@@ -167,7 +176,7 @@ const exercises: Exercise[] = [
     description:
       'Lower body move that mimics sitting in a chair, powering back up through the heels.',
     videoUrl: '/videos/Squats.mp4',
-    duration: '40 seconds',
+    duration: '20 seconds',
     difficulty: 'Beginner',
     targetMuscles: ['Glutes', 'Quads', 'Hamstrings'],
     category: 'Strength',
@@ -190,7 +199,7 @@ const exercises: Exercise[] = [
     description:
       'Curl shoulders off the floor to work the upper abs without pulling the neck.',
     videoUrl: '/videos/Classic Crunches.mp4',
-    duration: '30 seconds',
+    duration: '20 seconds',
     difficulty: 'Beginner',
     targetMuscles: ['Upper Abs'],
     category: 'Core',
@@ -211,9 +220,9 @@ const exercises: Exercise[] = [
     id: 9,
     name: 'Seated V Position',
     description:
-      'Balance on tailbone with legs and torso forming a “V”; hold for time to fire up the core.',
+      'Balance on tailbone with legs and torso forming a "V"; hold for time to fire up the core.',
     videoUrl: '/videos/Seated V position.mp4',
-    duration: '30 seconds',
+    duration: '20 seconds',
     difficulty: 'Intermediate',
     targetMuscles: ['Abdominals', 'Hip Flexors'],
     category: 'Core',
@@ -236,7 +245,7 @@ const exercises: Exercise[] = [
     description:
       'Maintain the V position while twisting torso side-to-side to tap the floor.',
     videoUrl: '/videos/Seated Side V .mp4',
-    duration: '30 seconds',
+    duration: '20 seconds',
     difficulty: 'Intermediate',
     targetMuscles: ['Obliques', 'Core'],
     category: 'Core',
@@ -259,7 +268,7 @@ const exercises: Exercise[] = [
     description:
       'Raise straight legs up to 90° and lower slowly without letting heels touch the floor.',
     videoUrl: '/videos/Lying down leg lifts.mp4',
-    duration: '30 seconds',
+    duration: '20 seconds',
     difficulty: 'Intermediate',
     targetMuscles: ['Lower Abs', 'Hip Flexors'],
     category: 'Core',
@@ -282,7 +291,7 @@ const exercises: Exercise[] = [
     description:
       'Lower legs only halfway before raising again—continuous tension for extra burn.',
     videoUrl: '/videos/Lying down half leg lifts.mp4',
-    duration: '30 seconds',
+    duration: '20 seconds',
     difficulty: 'Intermediate',
     targetMuscles: ['Lower Abs'],
     category: 'Core',
@@ -305,7 +314,7 @@ const exercises: Exercise[] = [
     description:
       'Explosive V-up: snap arms and legs together to meet in the middle.',
     videoUrl: '/videos/Lying down Hands to Toes.mp4',
-    duration: '25 seconds',
+    duration: '20 seconds',
     difficulty: 'Advanced',
     targetMuscles: ['Full Abs', 'Hip Flexors'],
     category: 'Core',
@@ -328,7 +337,7 @@ const exercises: Exercise[] = [
     description:
       'Hold a straight-line plank on forearms, keeping hips level and core tight.',
     videoUrl: '/videos/Plank.mp4',
-    duration: '40 seconds',
+    duration: '20 seconds',
     difficulty: 'Intermediate',
     targetMuscles: ['Core', 'Shoulders', 'Back'],
     category: 'Core',
@@ -351,7 +360,7 @@ const exercises: Exercise[] = [
     description:
       'Hover straight legs just above the floor and hold—an isometric lower-ab crusher.',
     videoUrl: '/videos/Laying Down legs straight a little above the floor.mp4',
-    duration: '30 seconds',
+    duration: '20 seconds',
     difficulty: 'Advanced',
     targetMuscles: ['Lower Abs', 'Hip Flexors'],
     category: 'Core',
@@ -376,10 +385,36 @@ export const difficultyLevels: ('Beginner' | 'Intermediate' | 'Advanced')[] = ['
 
 export { exercises };
 
+// Tabata structure: pairs of exercises with 2 rounds each
+const createTabataRounds = (exercises: Exercise[]): TabataRound[] => {
+  const rounds: TabataRound[] = [];
+  
+  for (let i = 0; i < exercises.length - 1; i += 2) {
+    rounds.push({
+      exercises: [exercises[i], exercises[i + 1]],
+      rounds: 2 // Each pair gets 2 complete cycles
+    });
+  }
+  
+  // Handle odd number of exercises by pairing the last one with the first
+  if (exercises.length % 2 !== 0) {
+    rounds.push({
+      exercises: [exercises[exercises.length - 1], exercises[0]],
+      rounds: 2
+    });
+  }
+  
+  return rounds;
+};
+
 export const beginnerToAdvancedWorkout: Workout = {
   id: 1,
-  name: 'Shahar’s Full-Body Progression',
-  exercises
+  name: 'Shahar\'s Tabata Full-Body Progression',
+  exercises,
+  tabataStructure: createTabataRounds(exercises),
+  workDuration: '20 seconds',
+  restDuration: '10 seconds',
+  totalDuration: '30 minutes' // Approximate total including transitions
 };
 
 export default beginnerToAdvancedWorkout;
