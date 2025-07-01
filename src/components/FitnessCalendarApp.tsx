@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import CalendarView from './CalendarView';
 import WorkoutOfTheDay from './WorkoutOfTheDay';
 import { beginnerToAdvancedWorkout, Exercise } from '@/data/exercises';
+import { FitnessVoiceCoach, PepTalkOptions } from '@/services/fitnessVoiceCoach';
 
 // Import the TikTokVideoPlayer from GameWorkoutApp
 import { videos } from '@/data/videos';
@@ -247,6 +248,9 @@ function TikTokVideoPlayer({
   const [playedBeeps, setPlayedBeeps] = useState<Set<number>>(new Set());
   const [showPlayPauseAnimation, setShowPlayPauseAnimation] = useState(false);
   const [animationIcon, setAnimationIcon] = useState<'play' | 'pause'>('play');
+  const [voiceCoachEnabled, setVoiceCoachEnabled] = useState(true);
+  const voiceCoach = React.useRef<FitnessVoiceCoach | null>(null);
+  const pepTalkIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // Function to play tabata beep sequence
   const playTabataBeepSequence = () => {
@@ -309,6 +313,74 @@ function TikTokVideoPlayer({
   // Get video metadata for speed adjustment (only for workout mode)
   const videoMetadata = mode === 'workout' ? getVideoMetadata(exercise.videoUrl) : null;
   const videoSpeed = videoMetadata?.video_speed || 1.0;
+
+  // Initialize voice coach
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      voiceCoach.current = FitnessVoiceCoach.getInstance();
+      voiceCoach.current.setEnabled(voiceCoachEnabled);
+    }
+
+    return () => {
+      if (voiceCoach.current) {
+        voiceCoach.current.stopSpeaking();
+      }
+      if (pepTalkIntervalRef.current) {
+        clearInterval(pepTalkIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Handle voice coach enable/disable
+  React.useEffect(() => {
+    if (voiceCoach.current) {
+      voiceCoach.current.setEnabled(voiceCoachEnabled);
+    }
+  }, [voiceCoachEnabled]);
+
+  // Deliver immediate pep talk when mode changes (transitions)
+  React.useEffect(() => {
+    if (!voiceCoach.current || !voiceCoachEnabled) return;
+
+    const pepTalkOptions: PepTalkOptions = {
+      exerciseName: exercise.name,
+      timeRemaining: currentTimer,
+      currentStep: currentExerciseIndex,
+      totalSteps: totalExercises,
+      userName: 'Shahar',
+      mode: mode
+    };
+
+    // Delay the pep talk slightly to avoid conflicts with video loading
+    const timeout = setTimeout(() => {
+      voiceCoach.current?.deliverImmediatePepTalk(pepTalkOptions);
+    }, 1000);
+
+    return () => clearTimeout(timeout);
+  }, [mode, exercise.name]);
+
+  // Set up pep talk interval during workout
+  React.useEffect(() => {
+    if (mode === 'workout' && isPlaying && voiceCoachEnabled && voiceCoach.current) {
+      pepTalkIntervalRef.current = setInterval(() => {
+        const pepTalkOptions: PepTalkOptions = {
+          exerciseName: exercise.name,
+          timeRemaining: currentTimer,
+          currentStep: currentExerciseIndex,
+          totalSteps: totalExercises,
+          userName: 'Shahar',
+          mode: 'workout'
+        };
+        voiceCoach.current?.deliverPepTalk(pepTalkOptions);
+      }, 6000); // Every 6 seconds during workout
+
+      return () => {
+        if (pepTalkIntervalRef.current) {
+          clearInterval(pepTalkIntervalRef.current);
+        }
+      };
+    }
+  }, [mode, isPlaying, voiceCoachEnabled, exercise.name, currentTimer]);
 
   React.useEffect(() => {
     const video = videoRef.current;
@@ -452,12 +524,26 @@ function TikTokVideoPlayer({
               <p className="text-white/80 text-lg mt-2 font-normal">{getSubtitle()}</p>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="w-12 h-12 bg-black/50 rounded-full flex items-center justify-center text-white text-xl hover:bg-black/70 transition-colors"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-4">
+            {/* Voice Coach Toggle */}
+            <button
+              onClick={() => setVoiceCoachEnabled(!voiceCoachEnabled)}
+              className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xl transition-colors ${
+                voiceCoachEnabled 
+                  ? 'bg-green-600/80 hover:bg-green-600' 
+                  : 'bg-black/50 hover:bg-black/70'
+              }`}
+              title={voiceCoachEnabled ? 'Voice Coach ON' : 'Voice Coach OFF'}
+            >
+              {voiceCoachEnabled ? '🎤' : '🔇'}
+            </button>
+            <button
+              onClick={onClose}
+              className="w-12 h-12 bg-black/50 rounded-full flex items-center justify-center text-white text-xl hover:bg-black/70 transition-colors"
+            >
+              ✕
+            </button>
+          </div>
         </div>
       </div>
 

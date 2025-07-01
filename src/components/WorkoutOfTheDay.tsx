@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Play, ArrowLeft, Clock, Target, Zap } from 'lucide-react';
+import { Play, ArrowLeft, Clock, Target, Zap, Volume2 } from 'lucide-react';
 import { beginnerToAdvancedWorkout } from '@/data/exercises';
+import { FitnessVoiceCoach } from '@/services/fitnessVoiceCoach';
 
 interface WorkoutOfTheDayProps {
   onWorkoutStart: (workout: typeof beginnerToAdvancedWorkout) => void;
@@ -17,6 +18,7 @@ interface CompletedWorkout {
 
 const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBack }) => {
   const [completedWorkouts, setCompletedWorkouts] = useState<CompletedWorkout[]>([]);
+  const [isTestingVoice, setIsTestingVoice] = useState(false);
 
   // Load completed workouts from localStorage
   useEffect(() => {
@@ -34,6 +36,20 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
 
   const handleStartWorkout = () => {
     onWorkoutStart(beginnerToAdvancedWorkout);
+  };
+
+  const handleTestVoiceCoach = async () => {
+    if (typeof window === 'undefined') return;
+    
+    setIsTestingVoice(true);
+    try {
+      const voiceCoach = FitnessVoiceCoach.getInstance();
+      await voiceCoach.testVoice();
+    } catch (error) {
+      console.error('Error testing voice coach:', error);
+    } finally {
+      setIsTestingVoice(false);
+    }
   };
 
   // Calculate total workout duration
@@ -157,18 +173,38 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
             </div>
           )}
           
-          <button
-            onClick={handleStartWorkout}
-            className="w-32 h-32 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:scale-105 active:scale-95 group"
-          >
-            <Play className="w-12 h-12 text-white ml-1 group-hover:scale-110 transition-transform" />
-          </button>
+          <div className="relative">
+            <button
+              onClick={handleStartWorkout}
+              className="w-32 h-32 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:scale-105 active:scale-95 group"
+            >
+              <Play className="w-12 h-12 text-white ml-1 group-hover:scale-110 transition-transform" />
+            </button>
+            
+            {/* Voice Coach Test Button */}
+            <button
+              onClick={handleTestVoiceCoach}
+              disabled={isTestingVoice}
+              className="absolute -top-2 -right-2 w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Test Voice Coach"
+            >
+              {isTestingVoice ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Volume2 className="w-5 h-5 text-white" />
+              )}
+            </button>
+          </div>
           
           <p className="text-gray-600 text-center mt-4 max-w-xs">
             {isCompletedToday 
               ? "Great job! You can always do it again to improve your form."
-              : "Tap the play button to start your workout and earn today&apos;s checkmark!"
+              : "Tap the play button to start your workout and earn today's checkmark!"
             }
+          </p>
+          
+          <p className="text-gray-500 text-center text-xs mt-2 max-w-xs">
+            💬 Tap the voice icon to test your AI fitness coach
           </p>
         </div>
 
