@@ -4,7 +4,6 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Droplets, Share, Play, Pause, RotateCcw, Volume2, VolumeX, Flame, Target } from 'lucide-react';
 import { exercises, Exercise } from '@/data/exercises';
 import { videos } from '@/data/videos';
-import BackgroundMusic from './BackgroundMusic';
 import { FitnessVoiceCoach } from '@/services/fitnessVoiceCoach';
 
 interface UserProgress {
@@ -57,6 +56,7 @@ interface TikTokVideoPlayerProps {
 type WorkoutPhase = 'get-ready' | 'workout' | 'rest';
 
 function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideoPlayerProps) {
+  
   const getReadyVideoRef = useRef<HTMLVideoElement>(null);
   const workoutVideoRef = useRef<HTMLVideoElement>(null);
   const restVideoRef = useRef<HTMLVideoElement>(null);
@@ -274,13 +274,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
 
   return (
     <div className="fixed inset-0 bg-black z-50">
-      {/* Background Music - starts fading in during get-ready phase */}
-      <BackgroundMusic 
-        isActive={true} 
-        volume={0.2} 
-        fadeInDuration={5000}
-        onLoadError={() => console.warn('Background music failed to load')}
-      />
+
       
       {/* Get Ready Video */}
       <video
@@ -291,6 +285,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
         playsInline
         autoPlay
         muted
+        onClick={togglePlay}
       />
 
       {/* Workout Video */}
@@ -312,6 +307,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
         playsInline
         autoPlay
         muted
+        onClick={togglePlay}
       />
 
       {/* Top Overlay - Exercise Info */}
@@ -413,24 +409,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
           </div>
         )}
 
-        {/* Skip Button for Get Ready and Rest phases */}
-        {(currentPhase === 'get-ready' || currentPhase === 'rest') && (
-          <div className="text-center mt-4">
-            <button
-              onClick={() => {
-                if (currentPhase === 'get-ready') {
-                  setCurrentPhase('workout');
-                  setPhaseTimer(0);
-                } else if (currentPhase === 'rest') {
-                  onWorkoutComplete();
-                }
-              }}
-              className="bg-white/20 hover:bg-white/30 px-6 py-2 rounded-full text-white font-medium transition-colors"
-            >
-              Skip {currentPhase === 'get-ready' ? '→' : '✓'}
-            </button>
-          </div>
-        )}
+
       </div>
 
       {/* Side Exercise Instructions - Only show during workout */}
@@ -450,33 +429,35 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
         </div>
       )}
 
-      {/* Bottom Control Bar - Only show during workout */}
-      {currentPhase === 'workout' && (
-        <div className="absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black/60 to-transparent p-4 pt-8">
-          <div className="flex items-center justify-center space-x-6">
+      {/* Bottom Control Bar - Show during all phases */}
+      <div className="absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black/60 to-transparent p-4 pt-8">
+        <div className="flex items-center justify-center space-x-6">
+          {currentPhase === 'workout' && (
             <button
               onClick={restartVideo}
               className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
             >
               <RotateCcw size={24} />
             </button>
-            
-            <button
-              onClick={togglePlay}
-              className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
-            >
-              {isPlaying ? <Pause size={32} /> : <Play size={32} />}
-            </button>
-            
+          )}
+          
+          <button
+            onClick={togglePlay}
+            className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+          >
+            {isPlaying ? <Pause size={32} /> : <Play size={32} />}
+          </button>
+          
+          {currentPhase === 'workout' && (
             <button
               onClick={toggleMute}
               className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
             >
               {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
             </button>
-          </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -544,6 +525,7 @@ export default function GameWorkoutApp() {
   if (currentScreen === 'home') {
     return (
       <div className="min-h-screen bg-gray-50 p-4 pb-24">
+        
         <div className="max-w-md mx-auto space-y-6">
           {/* Welcome Header */}
           <div className="text-center pt-8">

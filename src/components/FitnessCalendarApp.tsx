@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import CalendarView from './CalendarView';
 import WorkoutOfTheDay from './WorkoutOfTheDay';
+import BackgroundMusic from './BackgroundMusic';
 import { beginnerToAdvancedWorkout, Exercise } from '@/data/exercises';
 import { FitnessVoiceCoach, PepTalkOptions } from '@/services/fitnessVoiceCoach';
 
@@ -250,13 +251,21 @@ function TikTokVideoPlayer({
   const [animationIcon, setAnimationIcon] = useState<'play' | 'pause'>('play');
   const [voiceCoachEnabled, setVoiceCoachEnabled] = useState(true);
   const voiceCoach = React.useRef<FitnessVoiceCoach | null>(null);
+  const beepTimeouts = React.useRef<NodeJS.Timeout[]>([]);
+  const currentAudioContext = React.useRef<AudioContext | null>(null);
   const pepTalkTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const hasDeliveredMotivation = React.useRef<boolean>(false);
 
   // Function to play tabata beep sequence
   const playTabataBeepSequence = () => {
     try {
+      // Close any existing audio context to stop previous beeps
+      if (currentAudioContext.current) {
+        currentAudioContext.current.close();
+      }
+      
       const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+      currentAudioContext.current = context;
 
       const makeBeep = (startTime: number, duration: number, frequency = 880, volume = 0.3) => {
         const oscillator = context.createOscillator();
@@ -328,6 +337,11 @@ function TikTokVideoPlayer({
       }
       if (pepTalkTimeoutRef.current) {
         clearTimeout(pepTalkTimeoutRef.current);
+      }
+      // Clean up audio context
+      if (currentAudioContext.current) {
+        currentAudioContext.current.close();
+        currentAudioContext.current = null;
       }
     };
   }, []);
@@ -534,19 +548,24 @@ function TikTokVideoPlayer({
     const video = videoRef.current;
     if (!video) return;
 
-    if (mode === 'workout') {
-      if (isPlaying) {
-        video.pause();
-        setAnimationIcon('pause');
-      } else {
-        video.play();
-        setAnimationIcon('play');
+    if (isPlaying) {
+      video.pause();
+      setAnimationIcon('pause');
+      // Pause voice coaching when video is paused
+      voiceCoach.current?.stopSpeaking();
+      // Stop any ongoing beeps
+      if (currentAudioContext.current) {
+        currentAudioContext.current.close();
+        currentAudioContext.current = null;
       }
-      
-      // Show animation
-      setShowPlayPauseAnimation(true);
-      setTimeout(() => setShowPlayPauseAnimation(false), 600);
+    } else {
+      video.play();
+      setAnimationIcon('play');
     }
+    
+    // Show animation
+    setShowPlayPauseAnimation(true);
+    setTimeout(() => setShowPlayPauseAnimation(false), 600);
   };
 
   // Get title based on mode
@@ -648,17 +667,7 @@ function TikTokVideoPlayer({
         </div>
       )}
 
-      {/* Skip/Start Button for get-ready and rest modes */}
-      {(mode === 'get-ready' || mode === 'rest') && (
-        <div className="absolute inset-0 flex items-center justify-center z-30 pt-20">
-          <button
-            onClick={onWorkoutComplete}
-            className="mt-8 px-6 py-3 bg-white/20 text-white rounded-xl hover:bg-white/30 transition-colors font-normal"
-          >
-            {mode === 'get-ready' ? 'Start Now' : 'Skip Rest'}
-          </button>
-        </div>
-      )}
+
 
       {/* CSS Animation Styles */}
       <style jsx>{`
@@ -710,26 +719,30 @@ export default function FitnessCalendarApp() {
     setCurrentView('workout');
   };
 
-  if (currentView === 'player' && selectedWorkout) {
-    return (
-      <WorkoutPlayer
-        workout={selectedWorkout}
-        onWorkoutComplete={handleWorkoutComplete}
-        onClose={handleClosePlayer}
-      />
-    );
-  }
-
-  if (currentView === 'workout') {
-    return (
-      <WorkoutOfTheDay
-        onWorkoutStart={handleWorkoutStart}
-        onBack={handleBackToCalendar}
-      />
-    );
-  }
-
   return (
-    <CalendarView onWorkoutSelect={handleWorkoutSelect} />
+    <>
+      {/* Background Music - plays throughout the entire app */}
+      <BackgroundMusic 
+        isActive={true} 
+        volume={0.3} 
+        fadeInDuration={2000}
+        onLoadError={() => console.error('Background music failed to load')}
+      />
+      
+      {currentView === 'player' && selectedWorkout ? (
+        <WorkoutPlayer
+          workout={selectedWorkout}
+          onWorkoutComplete={handleWorkoutComplete}
+          onClose={handleClosePlayer}
+        />
+      ) : currentView === 'workout' ? (
+        <WorkoutOfTheDay
+          onWorkoutStart={handleWorkoutStart}
+          onBack={handleBackToCalendar}
+        />
+      ) : (
+        <CalendarView onWorkoutSelect={handleWorkoutSelect} />
+      )}
+    </>
   );
 } 
