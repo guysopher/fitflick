@@ -260,9 +260,8 @@ function TikTokVideoPlayer({
   const [playedBeeps, setPlayedBeeps] = useState<Set<number>>(new Set());
   const [showPlayPauseAnimation, setShowPlayPauseAnimation] = useState(false);
   const [animationIcon, setAnimationIcon] = useState<'play' | 'pause'>('play');
-  const [voiceCoachEnabled, setVoiceCoachEnabled] = useState(true);
+  const [voiceCoachEnabled] = useState(true);
   const voiceCoach = React.useRef<FitnessVoiceCoach | null>(null);
-  const beepTimeouts = React.useRef<NodeJS.Timeout[]>([]);
   const currentAudioContext = React.useRef<AudioContext | null>(null);
   const pepTalkTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const hasDeliveredMotivation = React.useRef<boolean>(false);
@@ -275,7 +274,8 @@ function TikTokVideoPlayer({
         currentAudioContext.current.close();
       }
       
-      const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const context = new AudioContextClass();
       currentAudioContext.current = context;
 
       const makeBeep = (startTime: number, duration: number, frequency = 880, volume = 0.3) => {

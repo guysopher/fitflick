@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Play, ArrowLeft, Clock, Target, Zap, Volume2 } from 'lucide-react';
+import { Play, ArrowLeft, Clock, Target, Zap } from 'lucide-react';
 import { beginnerToAdvancedWorkout } from '@/data/exercises';
-import { FitnessVoiceCoach } from '@/services/fitnessVoiceCoach';
 
 interface WorkoutOfTheDayProps {
   onWorkoutStart: (workout: typeof beginnerToAdvancedWorkout) => void;
@@ -18,7 +17,6 @@ interface CompletedWorkout {
 
 const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBack }) => {
   const [completedWorkouts, setCompletedWorkouts] = useState<CompletedWorkout[]>([]);
-  const [isTestingVoice, setIsTestingVoice] = useState(false);
 
   // Load completed workouts from localStorage
   useEffect(() => {
@@ -36,20 +34,6 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
 
   const handleStartWorkout = () => {
     onWorkoutStart(beginnerToAdvancedWorkout);
-  };
-
-  const handleTestVoiceCoach = async () => {
-    if (typeof window === 'undefined') return;
-    
-    setIsTestingVoice(true);
-    try {
-      const voiceCoach = FitnessVoiceCoach.getInstance();
-      await voiceCoach.testVoice();
-    } catch (error) {
-      console.error('Error testing voice coach:', error);
-    } finally {
-      setIsTestingVoice(false);
-    }
   };
 
   // Calculate total workout duration

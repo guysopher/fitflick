@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
+import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef, useCallback } from 'react';
 
 interface BackgroundMusicProps {
   isActive: boolean;
@@ -27,7 +27,6 @@ const BackgroundMusic = forwardRef<BackgroundMusicRef, BackgroundMusicProps>(({
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [currentVolume, setCurrentVolume] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioError, setAudioError] = useState<string>('');
   const [isSuspended, setIsSuspended] = useState(false);
@@ -59,7 +58,6 @@ const BackgroundMusic = forwardRef<BackgroundMusicRef, BackgroundMusicProps>(({
       
       // Set initial volume to 0 for fade-in
       audio.volume = 0;
-      setCurrentVolume(0);
       
       // Clear suspended and error states
       setIsSuspended(false);
@@ -84,7 +82,6 @@ const BackgroundMusic = forwardRef<BackgroundMusicRef, BackgroundMusicProps>(({
       fadeIntervalRef.current = setInterval(() => {
         step++;
         const newVolume = Math.min(volumeStep * step, volume);
-        setCurrentVolume(newVolume);
         
         if (audio && !audio.paused) {
           audio.volume = newVolume;
@@ -119,14 +116,13 @@ const BackgroundMusic = forwardRef<BackgroundMusicRef, BackgroundMusicProps>(({
     }
   };
 
-  const stopMusic = () => {
+  const stopMusic = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
     console.log('🎵 Stopping background music');
     audio.pause();
     audio.currentTime = 0;
-    setCurrentVolume(0);
     audio.volume = 0;
     setIsPlaying(false);
     
@@ -134,7 +130,7 @@ const BackgroundMusic = forwardRef<BackgroundMusicRef, BackgroundMusicProps>(({
       clearInterval(fadeIntervalRef.current);
       fadeIntervalRef.current = null;
     }
-  };
+  }, []);
 
   const pauseMusic = () => {
     const audio = audioRef.current;
@@ -218,7 +214,7 @@ const BackgroundMusic = forwardRef<BackgroundMusicRef, BackgroundMusicProps>(({
       });
     };
 
-    const handleError = (e: Event) => {
+    const handleError = () => {
       const errorMsg = `Audio load error: ${audio.error?.message || 'Unknown error'}`;
       console.error('🎵 Background music failed to load:', errorMsg);
       console.error('🎵 Audio error details:', {
@@ -335,7 +331,7 @@ const BackgroundMusic = forwardRef<BackgroundMusicRef, BackgroundMusicProps>(({
       console.log('🎵 isActive=false, stopping music');
       stopMusic();
     }
-  }, [isActive, isPlaying]);
+  }, [isActive, isPlaying, stopMusic]);
 
   // Cleanup on unmount
   useEffect(() => {
