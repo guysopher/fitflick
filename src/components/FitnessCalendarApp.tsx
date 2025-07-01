@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import CalendarView from './CalendarView';
 import WorkoutOfTheDay from './WorkoutOfTheDay';
-import BackgroundMusic from './BackgroundMusic';
+import BackgroundMusic, { BackgroundMusicRef } from './BackgroundMusic';
 import { beginnerToAdvancedWorkout, Exercise } from '@/data/exercises';
 import { FitnessVoiceCoach, PepTalkOptions } from '@/services/fitnessVoiceCoach';
 
@@ -695,12 +695,24 @@ type ViewMode = 'calendar' | 'workout' | 'player';
 export default function FitnessCalendarApp() {
   const [currentView, setCurrentView] = useState<ViewMode>('calendar');
   const [selectedWorkout, setSelectedWorkout] = useState<typeof beginnerToAdvancedWorkout | null>(null);
+  const backgroundMusicRef = useRef<BackgroundMusicRef>(null);
 
   const handleWorkoutSelect = () => {
     setCurrentView('workout');
   };
 
-  const handleWorkoutStart = (workout: typeof beginnerToAdvancedWorkout) => {
+  const handleWorkoutStart = async (workout: typeof beginnerToAdvancedWorkout) => {
+    console.log('🎵 Starting workout and music from main play button');
+    
+    // Start the music first, using the same user interaction
+    try {
+      await backgroundMusicRef.current?.startMusic();
+      console.log('🎵 Music started successfully with workout');
+    } catch (error) {
+      console.error('🎵 Failed to start music with workout:', error);
+    }
+    
+    // Then start the workout
     setSelectedWorkout(workout);
     setCurrentView('player');
   };
@@ -721,9 +733,10 @@ export default function FitnessCalendarApp() {
 
   return (
     <>
-      {/* Background Music - plays throughout the entire app */}
+      {/* Background Music - controlled via ref */}
       <BackgroundMusic 
-        isActive={true} 
+        ref={backgroundMusicRef}
+        isActive={currentView === 'workout' || currentView === 'player'} 
         volume={0.3} 
         fadeInDuration={2000}
         onLoadError={() => console.error('Background music failed to load')}

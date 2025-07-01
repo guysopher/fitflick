@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 
 interface BackgroundMusicProps {
   isActive: boolean;
@@ -9,94 +9,27 @@ interface BackgroundMusicProps {
   onLoadError?: () => void;
 }
 
-export default function BackgroundMusic({ 
+export interface BackgroundMusicRef {
+  startMusic: () => Promise<void>;
+  stopMusic: () => void;
+  isPlaying: boolean;
+  isLoaded: boolean;
+}
+
+const BackgroundMusic = forwardRef<BackgroundMusicRef, BackgroundMusicProps>(({ 
   isActive, 
   volume = 0.3, 
   fadeInDuration = 2000,
   onLoadError 
-}: BackgroundMusicProps) {
+}, ref) => {
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [currentVolume, setCurrentVolume] = useState(0);
-  const [needsUserInteraction, setNeedsUserInteraction] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioError, setAudioError] = useState<string>('');
+  const [isSuspended, setIsSuspended] = useState(false);
   const fadeIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const hasUserInteracted = useRef(false);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) {
-      console.error('🎵 Audio ref is null');
-      return;
-    }
-
-    console.log('🎵 Setting up background music:', audio.src);
-
-    const handleCanPlayThrough = () => {
-      setIsLoaded(true);
-      console.log('🎵 Background music loaded and ready to play');
-    };
-
-    const handleError = (e: Event) => {
-      const errorMsg = `Audio load error: ${audio.error?.message || 'Unknown error'}`;
-      console.error('🎵 Background music failed to load:', errorMsg);
-      setAudioError(errorMsg);
-      onLoadError?.();
-    };
-
-    const handlePlay = () => {
-      console.log('🎵 Audio started playing');
-      setIsPlaying(true);
-      setNeedsUserInteraction(false);
-    };
-
-    const handlePause = () => {
-      console.log('🎵 Audio paused');
-      setIsPlaying(false);
-      // If audio paused unexpectedly and we want it playing, show user interaction button
-      if (isActive && hasUserInteracted.current) {
-        console.log('🎵 Audio paused unexpectedly, requiring user interaction again');
-        setNeedsUserInteraction(true);
-      }
-    };
-
-    const handleEnded = () => {
-      console.log('🎵 Audio ended (this should not happen with loop=true)');
-      setIsPlaying(false);
-    };
-
-    const handleStalled = () => {
-      console.log('🎵 Audio stalled - network issue?');
-    };
-
-    const handleSuspend = () => {
-      console.log('🎵 Audio suspended - browser may have paused for policy reasons');
-      if (isActive) {
-        setNeedsUserInteraction(true);
-      }
-    };
-
-    // Add all event listeners
-    audio.addEventListener('canplaythrough', handleCanPlayThrough);
-    audio.addEventListener('error', handleError);
-    audio.addEventListener('play', handlePlay);
-    audio.addEventListener('pause', handlePause);
-    audio.addEventListener('ended', handleEnded);
-    audio.addEventListener('stalled', handleStalled);
-    audio.addEventListener('suspend', handleSuspend);
-
-    return () => {
-      audio.removeEventListener('canplaythrough', handleCanPlayThrough);
-      audio.removeEventListener('error', handleError);
-      audio.removeEventListener('play', handlePlay);
-      audio.removeEventListener('pause', handlePause);
-      audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('stalled', handleStalled);
-      audio.removeEventListener('suspend', handleSuspend);
-    };
-  }, [onLoadError, isActive]);
 
   const startMusic = async () => {
     const audio = audioRef.current;
@@ -112,23 +45,33 @@ export default function BackgroundMusic({
     }
 
     try {
-      // Mark that user has interacted
-      hasUserInteracted.current = true;
-      
       audio.currentTime = 0;
-      console.log('🎵 Starting background music...');
+      console.log('🎵 Starting background music from main play button...');
+      console.log('🎵 Audio state before play:', {
+        paused: audio.paused,
+        currentTime: audio.currentTime,
+        volume: audio.volume,
+        readyState: audio.readyState,
+        networkState: audio.networkState
+      });
       
       // Set initial volume to 0 for fade-in
       audio.volume = 0;
       setCurrentVolume(0);
       
-      await audio.play();
+      // Clear suspended and error states
+      setIsSuspended(false);
+      setAudioError('');
+      
+      // This must be called directly in response to user interaction
+      const playPromise = audio.play();
+      console.log('🎵 Play promise created:', playPromise);
+      
+      await playPromise;
+      
       console.log('🎵 Background music playing successfully! 🎶');
       console.log('🎵 Audio duration:', audio.duration, 'seconds');
       console.log('🎵 Audio loop:', audio.loop);
-      
-      setNeedsUserInteraction(false);
-      setAudioError('');
       
       // Start fade-in
       const fadeSteps = 50;
@@ -155,10 +98,21 @@ export default function BackgroundMusic({
 
     } catch (error) {
       console.error('🎵 Failed to play background music:', error);
+      console.error('🎵 Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        audioState: {
+          paused: audio.paused,
+          currentTime: audio.currentTime,
+          readyState: audio.readyState,
+          networkState: audio.networkState
+        }
+      });
+      
       const errorMsg = error instanceof Error ? error.message : 'Unknown playback error';
       setAudioError(errorMsg);
-      setNeedsUserInteraction(true);
       setIsPlaying(false);
+      setIsSuspended(false); // Clear suspended state on error
       onLoadError?.();
     }
   };
@@ -180,24 +134,177 @@ export default function BackgroundMusic({
     }
   };
 
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    startMusic,
+    stopMusic,
+    isPlaying,
+    isLoaded
+  }));
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) {
+      console.error('🎵 Audio ref is null');
+      return;
+    }
+
+    console.log('🎵 Setting up background music:', audio.src);
+    console.log('🎵 Audio element properties:', {
+      readyState: audio.readyState,
+      networkState: audio.networkState,
+      currentSrc: audio.currentSrc,
+      duration: audio.duration,
+      paused: audio.paused,
+      ended: audio.ended,
+      loop: audio.loop,
+      preload: audio.preload
+    });
+
+    const handleLoadStart = () => {
+      console.log('🎵 Audio load started');
+    };
+
+    const handleLoadedMetadata = () => {
+      console.log('🎵 Audio metadata loaded - duration:', audio.duration);
+    };
+
+    const handleLoadedData = () => {
+      console.log('🎵 Audio data loaded');
+    };
+
+    const handleCanPlay = () => {
+      console.log('🎵 Audio can start playing');
+    };
+
+    const handleCanPlayThrough = () => {
+      setIsLoaded(true);
+      console.log('🎵 Background music loaded and ready to play');
+      console.log('🎵 Final audio properties:', {
+        duration: audio.duration,
+        readyState: audio.readyState,
+        currentSrc: audio.currentSrc
+      });
+    };
+
+    const handleError = (e: Event) => {
+      const errorMsg = `Audio load error: ${audio.error?.message || 'Unknown error'}`;
+      console.error('🎵 Background music failed to load:', errorMsg);
+      console.error('🎵 Audio error details:', {
+        error: audio.error,
+        code: audio.error?.code,
+        message: audio.error?.message,
+        networkState: audio.networkState,
+        readyState: audio.readyState,
+        currentSrc: audio.currentSrc
+      });
+      setAudioError(errorMsg);
+      onLoadError?.();
+    };
+
+    const handleAbort = () => {
+      console.log('🎵 Audio loading aborted');
+    };
+
+    const handleStalled = () => {
+      console.log('🎵 Audio loading stalled - network issue?');
+      console.log('🎵 Network state:', audio.networkState);
+    };
+
+    const handleSuspend = () => {
+      console.log('🎵 Audio loading suspended - attempting to resume...');
+      setIsSuspended(true);
+      
+      // If we're supposed to be playing but got suspended, try to resume
+      if (isLoaded && isPlaying) {
+        console.log('🎵 Music was playing when suspended, attempting to resume...');
+        
+        // Add a small delay then try to resume
+        setTimeout(() => {
+          const audio = audioRef.current;
+          if (audio && audio.paused && isPlaying) {
+            console.log('🎵 Attempting to resume suspended audio...');
+            audio.play().then(() => {
+              console.log('🎵 Successfully resumed suspended audio');
+              setIsSuspended(false);
+            }).catch(error => {
+              console.error('🎵 Failed to resume suspended audio:', error);
+            });
+          }
+        }, 1000);
+      }
+    };
+
+    const handleProgress = () => {
+      if (audio.buffered.length > 0) {
+        const bufferedEnd = audio.buffered.end(0);
+        const duration = audio.duration;
+        if (duration > 0) {
+          const percentLoaded = (bufferedEnd / duration) * 100;
+          console.log(`🎵 Audio loading progress: ${percentLoaded.toFixed(1)}%`);
+        }
+      }
+    };
+
+    const handlePlay = () => {
+      console.log('🎵 Audio started playing');
+      setIsPlaying(true);
+      setIsSuspended(false);
+    };
+
+    const handlePause = () => {
+      console.log('🎵 Audio paused');
+      setIsPlaying(false);
+    };
+
+    const handleEnded = () => {
+      console.log('🎵 Audio ended (this should not happen with loop=true)');
+      setIsPlaying(false);
+    };
+
+    // Add all event listeners
+    audio.addEventListener('loadstart', handleLoadStart);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('loadeddata', handleLoadedData);
+    audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('canplaythrough', handleCanPlayThrough);
+    audio.addEventListener('error', handleError);
+    audio.addEventListener('abort', handleAbort);
+    audio.addEventListener('stalled', handleStalled);
+    audio.addEventListener('suspend', handleSuspend);
+    audio.addEventListener('progress', handleProgress);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('ended', handleEnded);
+
+    // Force load attempt
+    audio.load();
+    console.log('🎵 Forced audio.load() call');
+
+    return () => {
+      audio.removeEventListener('loadstart', handleLoadStart);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('loadeddata', handleLoadedData);
+      audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('canplaythrough', handleCanPlayThrough);
+      audio.removeEventListener('error', handleError);
+      audio.removeEventListener('abort', handleAbort);
+      audio.removeEventListener('stalled', handleStalled);
+      audio.removeEventListener('suspend', handleSuspend);
+      audio.removeEventListener('progress', handleProgress);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [onLoadError]);
+
   // Handle isActive prop changes
   useEffect(() => {
-    if (!isLoaded) return;
-
-    if (isActive && !isPlaying) {
-      console.log('🎵 isActive=true, attempting to start music');
-      // Only try automatic start if user hasn't interacted yet
-      if (!hasUserInteracted.current) {
-        startMusic();
-      } else {
-        // User has interacted before, show button for them to click again
-        setNeedsUserInteraction(true);
-      }
-    } else if (!isActive && isPlaying) {
+    if (!isActive && isPlaying) {
       console.log('🎵 isActive=false, stopping music');
       stopMusic();
     }
-  }, [isActive, isLoaded]);
+  }, [isActive, isPlaying]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -210,44 +317,8 @@ export default function BackgroundMusic({
 
   return (
     <>
-      {/* Music Control Button - shows when user interaction is needed */}
-      {isLoaded && isActive && needsUserInteraction && (
-        <button
-          onClick={startMusic}
-          style={{
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            border: 'none',
-            padding: '12px 20px',
-            borderRadius: '25px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            zIndex: 1000,
-            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
-            transition: 'all 0.3s ease',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.3)';
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.2)';
-          }}
-        >
-          🎵 {hasUserInteracted.current ? 'Resume' : 'Start'} Music
-        </button>
-      )}
-
       {/* Music Playing Indicator */}
-      {isLoaded && isPlaying && (
+      {isLoaded && isPlaying && !isSuspended && (
         <div style={{
           position: 'fixed',
           top: '20px',
@@ -269,6 +340,40 @@ export default function BackgroundMusic({
           }}>🎵</span>
           Music Playing (Vol: {Math.round(currentVolume * 100)}%)
         </div>
+      )}
+
+      {/* Suspended Music Indicator with Resume Button */}
+      {isLoaded && isSuspended && (
+        <button
+          onClick={startMusic}
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            background: 'linear-gradient(135deg, #ff6b6b 0%, #ffa500 100%)',
+            color: 'white',
+            border: 'none',
+            padding: '10px 16px',
+            borderRadius: '20px',
+            fontSize: '12px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            zIndex: 1000,
+            boxShadow: '0 4px 15px rgba(255, 107, 107, 0.3)',
+            transition: 'all 0.3s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+        >
+          ⚠️ Resume Music
+        </button>
       )}
 
       {/* Error Indicator */}
@@ -309,4 +414,8 @@ export default function BackgroundMusic({
       `}</style>
     </>
   );
-} 
+});
+
+BackgroundMusic.displayName = 'BackgroundMusic';
+
+export default BackgroundMusic; 
