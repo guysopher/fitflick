@@ -30,8 +30,7 @@ interface AudioCache {
 
 export class FitnessVoiceCoach {
   private static instance: FitnessVoiceCoach;
-  private speechSynthesis: SpeechSynthesis;
-  private currentUtterance: SpeechSynthesisUtterance | null = null;
+  private currentUtterance: HTMLAudioElement | null = null;
   private isEnabled: boolean = true;
   private lastPepTalkTime: number = 0;
   private pepTalkInterval: number = 8000; // 8 seconds between pep talks
@@ -39,7 +38,7 @@ export class FitnessVoiceCoach {
   private generationInProgress: Set<string> = new Set();
 
   private constructor() {
-    this.speechSynthesis = window.speechSynthesis;
+    // No initialization needed anymore
   }
 
   static getInstance(): FitnessVoiceCoach {
@@ -52,7 +51,7 @@ export class FitnessVoiceCoach {
   setEnabled(enabled: boolean) {
     this.isEnabled = enabled;
     if (!enabled && this.currentUtterance) {
-      this.speechSynthesis.cancel();
+      this.stopSpeaking();
     }
   }
 
@@ -214,66 +213,27 @@ export class FitnessVoiceCoach {
           URL.revokeObjectURL(audioUrl);
           this.currentUtterance = null;
           console.error('Audio playback error:', error);
-          // Fallback to browser speech synthesis
-          this.fallbackToBuiltInSpeech(text).then(resolve).catch(resolve);
+          // No fallback - fail silently
+          resolve();
         };
 
         // Store reference for potential cancellation
         this.currentUtterance = audio as any;
         audio.play().catch((error) => {
           console.error('Failed to play OpenAI TTS audio:', error);
-          // Fallback to browser speech synthesis
-          this.fallbackToBuiltInSpeech(text).then(resolve).catch(resolve);
+          // No fallback - fail silently
+          resolve();
         });
       });
 
     } catch (error) {
       console.error('OpenAI TTS error:', error);
-      // Fallback to browser speech synthesis
-      return this.fallbackToBuiltInSpeech(text);
+      // No fallback - fail silently
+      return;
     }
   }
 
-  // Fallback method using browser's built-in speech synthesis
-  private async fallbackToBuiltInSpeech(text: string): Promise<void> {
-    if (!this.isEnabled) return;
 
-    // Cancel any current speech
-    this.speechSynthesis.cancel();
-
-    return new Promise((resolve) => {
-      const utterance = new SpeechSynthesisUtterance(text);
-      
-      // Configure voice settings
-      utterance.rate = 1.1; // Slightly faster
-      utterance.pitch = 1.1; // Slightly higher pitch for energy
-      utterance.volume = 0.8;
-      
-      // Try to find a suitable voice
-      const voices = this.speechSynthesis.getVoices();
-      const preferredVoice = voices.find(voice => 
-        voice.lang.startsWith('en') && 
-        (voice.name.includes('Female') || voice.name.includes('Samantha') || voice.name.includes('Karen'))
-      ) || voices.find(voice => voice.lang.startsWith('en'));
-      
-      if (preferredVoice) {
-        utterance.voice = preferredVoice;
-      }
-
-      utterance.onend = () => {
-        this.currentUtterance = null;
-        resolve();
-      };
-
-      utterance.onerror = () => {
-        this.currentUtterance = null;
-        resolve();
-      };
-
-      this.currentUtterance = utterance;
-      this.speechSynthesis.speak(utterance);
-    });
-  }
 
   async deliverPepTalk(options: PepTalkOptions): Promise<void> {
     if (!this.isEnabled) return;
@@ -352,15 +312,10 @@ export class FitnessVoiceCoach {
   }
 
   stopSpeaking(): void {
-    // Stop browser speech synthesis
-    this.speechSynthesis.cancel();
-    
     // Stop OpenAI TTS audio if playing
     if (this.currentUtterance) {
-      if (this.currentUtterance instanceof HTMLAudioElement) {
-        this.currentUtterance.pause();
-        this.currentUtterance.currentTime = 0;
-      }
+      this.currentUtterance.pause();
+      this.currentUtterance.currentTime = 0;
       this.currentUtterance = null;
     }
   }

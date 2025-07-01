@@ -4,6 +4,8 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Droplets, Share, Play, Pause, RotateCcw, Volume2, VolumeX, Flame, Target } from 'lucide-react';
 import { exercises, Exercise } from '@/data/exercises';
 import { videos } from '@/data/videos';
+import BackgroundMusic from './BackgroundMusic';
+import { FitnessVoiceCoach } from '@/services/fitnessVoiceCoach';
 
 interface UserProgress {
   level: number;
@@ -58,6 +60,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
   const getReadyVideoRef = useRef<HTMLVideoElement>(null);
   const workoutVideoRef = useRef<HTMLVideoElement>(null);
   const restVideoRef = useRef<HTMLVideoElement>(null);
+  const voiceCoachRef = useRef<FitnessVoiceCoach | null>(null);
   
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -86,6 +89,16 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
   const videoMetadata = getVideoMetadata(exercise.videoUrl);
   const videoSpeed = videoMetadata?.video_speed || 1.0;
 
+  // Initialize voice coach
+  useEffect(() => {
+    voiceCoachRef.current = FitnessVoiceCoach.getInstance();
+    
+    // Cleanup: stop voice coach when component unmounts
+    return () => {
+      voiceCoachRef.current?.stopSpeaking();
+    };
+  }, []);
+
   // Timer effect for get-ready and rest phases
   useEffect(() => {
     if (currentPhase === 'get-ready' || currentPhase === 'rest') {
@@ -96,6 +109,8 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
               setCurrentPhase('workout');
               setPhaseTimer(0);
             } else if (currentPhase === 'rest') {
+              // Stop voice coaching when workout is complete
+              voiceCoachRef.current?.stopSpeaking();
               onWorkoutComplete();
             }
             return 0;
@@ -157,6 +172,8 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
           setCurrentPhase('rest');
           setPhaseTimer(10); // 10 seconds rest
           setWorkoutProgress(100);
+          // Stop voice coaching when transitioning to rest phase
+          voiceCoachRef.current?.stopSpeaking();
         }
       }
     };
@@ -187,6 +204,8 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
 
     if (isPlaying) {
       video.pause();
+      // Stop voice coaching when video is paused
+      voiceCoachRef.current?.stopSpeaking();
     } else {
       video.play();
     }
@@ -207,6 +226,8 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
     
     video.currentTime = 0;
     setWorkoutProgress(0);
+    // Stop voice coaching when video is restarted
+    voiceCoachRef.current?.stopSpeaking();
   };
 
   const formatTime = (time: number) => {
@@ -253,6 +274,14 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
 
   return (
     <div className="fixed inset-0 bg-black z-50">
+      {/* Background Music - starts fading in during get-ready phase */}
+      <BackgroundMusic 
+        isActive={true} 
+        volume={0.2} 
+        fadeInDuration={5000}
+        onLoadError={() => console.warn('Background music failed to load')}
+      />
+      
       {/* Get Ready Video */}
       <video
         ref={getReadyVideoRef}
@@ -295,7 +324,11 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
             )}
           </div>
           <button
-            onClick={onClose}
+            onClick={() => {
+              // Stop voice coaching when workout is closed
+              voiceCoachRef.current?.stopSpeaking();
+              onClose();
+            }}
             className="w-10 h-10 bg-black/50 rounded-full flex items-center justify-center text-white text-xl"
           >
             ✕
