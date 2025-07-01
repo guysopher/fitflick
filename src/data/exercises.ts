@@ -33,29 +33,6 @@ export interface Workout {
 
 const exercises: Exercise[] = [
   {
-    id: 1,
-    name: 'Ready Stance (Neutral)',
-    description:
-      'Stand upright with feet hip-width apart, arms relaxed at sides, shoulders back and tummy gently tight. Use this as the perfect posture check before any move.',
-    videoUrl: '/videos/Standard Mode Animation Video.mp4',
-    duration: '20 seconds',
-    difficulty: 'Beginner',
-    targetMuscles: ['Posture', 'Core stabilisers'],
-    category: 'Warm-up',
-    equipment: 'None',
-    instructions: [
-      'Look straight ahead, soften knees.',
-      'Roll shoulders back and down.',
-      'Lightly tighten tummy and glutes.',
-      'Hold the pose and breathe steadily.'
-    ],
-    benefits: [
-      'Promotes good posture',
-      'Activates core gently',
-      'Sets a "ready" mindset'
-    ]
-  },
-  {
     id: 2,
     name: 'Jumping Jacks',
     description:
@@ -101,29 +78,29 @@ const exercises: Exercise[] = [
       'Can be done anywhere'
     ]
   },
-  {
-    id: 4,
-    name: 'Jumping Rope (Imaginary)',
-    description:
-      'Small rhythmic hops while twirling an "air" jump rope with the wrists.',
-    videoUrl: '/videos/Jumping Rope.mp4',
-    duration: '20 seconds',
-    difficulty: 'Beginner',
-    targetMuscles: ['Calves', 'Shoulders', 'Cardio system'],
-    category: 'Cardio',
-    equipment: 'None',
-    instructions: [
-      'Keep elbows close to ribs, palms forward.',
-      'Flick wrists in tiny circles as if swinging a rope.',
-      'Hop lightly off the ground, landing on balls of feet.',
-      'Maintain an even pace and soft knees.'
-    ],
-    benefits: [
-      'Improves timing and rhythm',
-      'Strengthens calves',
-      'Great calorie burner without gear'
-    ]
-  },
+  // {
+  //   id: 4,
+  //   name: 'Jumping Rope (Imaginary)',
+  //   description:
+  //     'Small rhythmic hops while twirling an "air" jump rope with the wrists.',
+  //   videoUrl: '/videos/Jumping Rope.mp4',
+  //   duration: '20 seconds',
+  //   difficulty: 'Beginner',
+  //   targetMuscles: ['Calves', 'Shoulders', 'Cardio system'],
+  //   category: 'Cardio',
+  //   equipment: 'None',
+  //   instructions: [
+  //     'Keep elbows close to ribs, palms forward.',
+  //     'Flick wrists in tiny circles as if swinging a rope.',
+  //     'Hop lightly off the ground, landing on balls of feet.',
+  //     'Maintain an even pace and soft knees.'
+  //   ],
+  //   benefits: [
+  //     'Improves timing and rhythm',
+  //     'Strengthens calves',
+  //     'Great calorie burner without gear'
+  //   ]
+  // },
   {
     id: 5,
     name: 'Quick Jumps in Place',

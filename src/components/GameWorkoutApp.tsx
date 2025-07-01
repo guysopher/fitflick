@@ -52,6 +52,8 @@ interface TikTokVideoPlayerProps {
   onClose: () => void;
 }
 
+type WorkoutPhase = 'get-ready' | 'workout' | 'rest';
+
 function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -59,31 +61,82 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [workoutProgress, setWorkoutProgress] = useState(0);
+  const [currentPhase, setCurrentPhase] = useState<WorkoutPhase>('get-ready');
+  const [phaseTimer, setPhaseTimer] = useState(5); // 5 seconds for get ready, customizable for rest
+
+  // Get current video URL based on phase
+  const getCurrentVideoUrl = () => {
+    switch (currentPhase) {
+      case 'get-ready':
+        return '/videos/Ready.mp4';
+      case 'rest':
+        return '/videos/Resting.mp4';
+      case 'workout':
+      default:
+        return exercise.videoUrl;
+    }
+  };
 
   // Get video metadata for speed adjustment
   const videoMetadata = getVideoMetadata(exercise.videoUrl);
   const videoSpeed = videoMetadata?.video_speed || 1.0;
 
+  // Timer effect for get-ready and rest phases
+  useEffect(() => {
+    if (currentPhase === 'get-ready' || currentPhase === 'rest') {
+      const timer = setInterval(() => {
+        setPhaseTimer(prev => {
+          if (prev <= 1) {
+            if (currentPhase === 'get-ready') {
+              setCurrentPhase('workout');
+              setPhaseTimer(0);
+            } else if (currentPhase === 'rest') {
+              onWorkoutComplete();
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [currentPhase, onWorkoutComplete]);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    // Set video playback speed
-    video.playbackRate = videoSpeed;
+    // Set video playback speed (only for workout phase)
+    if (currentPhase === 'workout') {
+      video.playbackRate = videoSpeed;
+    } else {
+      video.playbackRate = 1.0; // Normal speed for get-ready and rest videos
+    }
 
     const handleTimeUpdate = () => {
       setCurrentTime(video.currentTime);
-      const progress = (video.currentTime / video.duration) * 100;
-      setWorkoutProgress(progress);
       
-      // Auto-complete when video ends
-      if (progress >= 95) {
-        onWorkoutComplete();
+      if (currentPhase === 'workout') {
+        const progress = (video.currentTime / video.duration) * 100;
+        setWorkoutProgress(progress);
+        
+        // Auto-complete workout when video ends, then go to rest
+        if (progress >= 95) {
+          setCurrentPhase('rest');
+          setPhaseTimer(10); // 10 seconds rest
+          setWorkoutProgress(100);
+        }
       }
     };
 
     const handleLoadedData = () => {
       setDuration(video.duration);
+      // Auto-play for get-ready and rest phases
+      if (currentPhase === 'get-ready' || currentPhase === 'rest') {
+        video.play();
+        setIsPlaying(true);
+      }
     };
 
     video.addEventListener('timeupdate', handleTimeUpdate);
@@ -93,7 +146,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('loadeddata', handleLoadedData);
     };
-  }, [onWorkoutComplete, videoSpeed]);
+  }, [onWorkoutComplete, videoSpeed, currentPhase]);
 
   const togglePlay = () => {
     const video = videoRef.current;
@@ -140,22 +193,52 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
 
   const coinsReward = calculateCoinsReward(exercise.difficulty, exercise.duration);
 
+  // Get phase-specific title and display info
+  const getPhaseTitle = () => {
+    switch (currentPhase) {
+      case 'get-ready':
+        return 'Get Ready!';
+      case 'rest':
+        return 'Rest Time';
+      case 'workout':
+      default:
+        return exercise.name;
+    }
+  };
+
+  const getPhaseSubtitle = () => {
+    switch (currentPhase) {
+      case 'get-ready':
+        return 'Prepare for your workout';
+      case 'rest':
+        return 'Take a breather';
+      case 'workout':
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black z-50">
       {/* Video Background */}
       <video
         ref={videoRef}
-        src={exercise.videoUrl}
+        src={getCurrentVideoUrl()}
         className="w-full h-full object-cover"
         loop
         playsInline
-        onClick={togglePlay}
+        onClick={currentPhase === 'workout' ? togglePlay : undefined}
       />
 
       {/* Top Overlay - Exercise Info */}
       <div className="absolute top-0 left-0 right-0 z-40 bg-gradient-to-b from-black/60 to-transparent p-4 pb-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-white">{exercise.name}</h2>
+          <div>
+            <h2 className="text-2xl font-bold text-white">{getPhaseTitle()}</h2>
+            {getPhaseSubtitle() && (
+              <p className="text-white/80 text-sm mt-1">{getPhaseSubtitle()}</p>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="w-10 h-10 bg-black/50 rounded-full flex items-center justify-center text-white text-xl"
@@ -163,87 +246,130 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
             ✕
           </button>
         </div>
-        
-        <div className="flex items-center gap-4 mb-3">
-          <span className="bg-white/20 px-3 py-1 rounded-full text-sm text-white font-medium">
-            {exercise.duration}
-          </span>
-          <span className="bg-white/20 px-3 py-1 rounded-full text-sm text-white font-medium">
-            +{coinsReward} coins
-          </span>
-          <span className={`px-3 py-1 rounded-full text-sm text-white font-medium ${getDifficultyColor(exercise.difficulty)}`}>
-            {exercise.difficulty}
-          </span>
-        </div>
 
-        {/* Target Muscles */}
-        <div className="flex flex-wrap gap-2 mb-3">
-          {exercise.targetMuscles.map((muscle, index) => (
-            <span 
-              key={index}
-              className="bg-white/20 px-2 py-1 rounded-full text-xs text-white"
-            >
-              {muscle}
-            </span>
-          ))}
-        </div>
+        {/* Phase Timer */}
+        {(currentPhase === 'get-ready' || currentPhase === 'rest') && (
+          <div className="text-center mb-4">
+            <div className="text-6xl font-bold text-white mb-2">{phaseTimer}</div>
+            <div className="text-white/80 text-sm">
+              {currentPhase === 'get-ready' ? 'seconds to start' : 'seconds remaining'}
+            </div>
+          </div>
+        )}
 
-        {/* Progress Bar */}
-        <div className="mb-2">
-          <div className="bg-white/20 rounded-full h-1 overflow-hidden">
-            <div 
-              className="bg-white h-full transition-all duration-300"
-              style={{ width: `${workoutProgress}%` }}
-            />
+        {/* Workout Phase Info */}
+        {currentPhase === 'workout' && (
+          <>
+            <div className="flex items-center gap-4 mb-3">
+              <span className="bg-white/20 px-3 py-1 rounded-full text-sm text-white font-medium">
+                {exercise.duration}
+              </span>
+              <span className="bg-white/20 px-3 py-1 rounded-full text-sm text-white font-medium">
+                +{coinsReward} coins
+              </span>
+              <span className={`px-3 py-1 rounded-full text-sm text-white font-medium ${getDifficultyColor(exercise.difficulty)}`}>
+                {exercise.difficulty}
+              </span>
+            </div>
+
+            {/* Target Muscles */}
+            <div className="flex flex-wrap gap-2 mb-3">
+              {exercise.targetMuscles.map((muscle, index) => (
+                <span 
+                  key={index}
+                  className="bg-white/20 px-2 py-1 rounded-full text-xs text-white"
+                >
+                  {muscle}
+                </span>
+              ))}
+            </div>
+
+            {/* Progress Bar */}
+            <div className="mb-2">
+              <div className="bg-white/20 rounded-full h-1 overflow-hidden">
+                <div 
+                  className="bg-white h-full transition-all duration-300"
+                  style={{ width: `${workoutProgress}%` }}
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-between text-white text-sm">
+              <span>{formatTime(currentTime)}</span>
+              <span>{formatTime(duration)}</span>
+            </div>
+          </>
+        )}
+
+        {/* Get Ready Phase Info */}
+        {currentPhase === 'get-ready' && (
+          <div className="text-center">
+            <div className="bg-white/20 px-4 py-2 rounded-full text-white font-medium mb-2">
+              Next: {exercise.name}
+            </div>
+            <div className="text-white/80 text-sm">
+              {exercise.difficulty} • {exercise.duration}
+            </div>
+          </div>
+        )}
+
+        {/* Rest Phase Info */}
+        {currentPhase === 'rest' && (
+          <div className="text-center">
+            <div className="bg-green-500/80 px-4 py-2 rounded-full text-white font-medium mb-2">
+              Great work! 💪
+            </div>
+            <div className="text-white/80 text-sm">
+              You earned +{coinsReward} coins
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Side Exercise Instructions - Only show during workout */}
+      {currentPhase === 'workout' && (
+        <div className="absolute right-4 top-1/3 z-40 space-y-4 max-w-xs">
+          <div className="bg-black/50 rounded-lg p-4 text-white">
+            <h3 className="font-bold text-lg mb-2">Instructions</h3>
+            <ul className="space-y-1 text-sm">
+              {exercise.instructions.map((instruction, index) => (
+                <li key={index} className="flex items-start">
+                  <span className="text-blue-400 mr-2 mt-1">•</span>
+                  {instruction}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
-        
-        <div className="flex justify-between text-white text-sm">
-          <span>{formatTime(currentTime)}</span>
-          <span>{formatTime(duration)}</span>
-        </div>
-      </div>
+      )}
 
-      {/* Side Exercise Instructions */}
-      <div className="absolute right-4 top-1/3 z-40 space-y-4 max-w-xs">
-        <div className="bg-black/50 rounded-lg p-4 text-white">
-          <h3 className="font-bold text-lg mb-2">Instructions</h3>
-          <ul className="space-y-1 text-sm">
-            {exercise.instructions.map((instruction, index) => (
-              <li key={index} className="flex items-start">
-                <span className="text-blue-400 mr-2 mt-1">•</span>
-                {instruction}
-              </li>
-            ))}
-          </ul>
+      {/* Bottom Control Bar - Only show during workout */}
+      {currentPhase === 'workout' && (
+        <div className="absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black/60 to-transparent p-4 pt-8">
+          <div className="flex items-center justify-center space-x-6">
+            <button
+              onClick={restartVideo}
+              className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+            >
+              <RotateCcw size={24} />
+            </button>
+            
+            <button
+              onClick={togglePlay}
+              className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+            >
+              {isPlaying ? <Pause size={32} /> : <Play size={32} />}
+            </button>
+            
+            <button
+              onClick={toggleMute}
+              className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+            >
+              {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+            </button>
+          </div>
         </div>
-      </div>
-
-      {/* Bottom Control Bar */}
-      <div className="absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black/60 to-transparent p-4 pt-8">
-        <div className="flex items-center justify-center space-x-6">
-          <button
-            onClick={restartVideo}
-            className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
-          >
-            <RotateCcw size={24} />
-          </button>
-          
-          <button
-            onClick={togglePlay}
-            className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
-          >
-            {isPlaying ? <Pause size={32} /> : <Play size={32} />}
-          </button>
-          
-          <button
-            onClick={toggleMute}
-            className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
-          >
-            {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
