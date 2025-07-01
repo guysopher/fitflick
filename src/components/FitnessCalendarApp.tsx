@@ -37,6 +37,8 @@ function WorkoutPlayer({ workout, onWorkoutComplete, onClose }: WorkoutPlayerPro
 
   // Calculate current exercise based on the pattern
   const getCurrentExercise = () => {
+    const totalExercises = workout.exercises.length;
+    
     // Calculate which pair group we're in (0-1, 2-3, 4-5, etc.)
     const pairGroup = Math.floor(workoutStep / 4);
     
@@ -46,7 +48,17 @@ function WorkoutPlayer({ workout, onWorkoutComplete, onClose }: WorkoutPlayerPro
     // Determine exercise indices for current pair
     const baseIndex = pairGroup * 2;
     const firstExerciseIndex = baseIndex;
-    const secondExerciseIndex = Math.min(baseIndex + 1, workout.exercises.length - 1);
+    const secondExerciseIndex = baseIndex + 1;
+    
+    // Handle edge case: if we're at the last exercise and it's odd
+    if (firstExerciseIndex >= totalExercises) {
+      return workout.exercises[totalExercises - 1];
+    }
+    
+    // If second exercise doesn't exist (odd number), use first for all positions
+    if (secondExerciseIndex >= totalExercises) {
+      return workout.exercises[firstExerciseIndex];
+    }
     
     // Pattern within each pair cycle: ex1, ex2, ex1, ex2
     if (positionInCycle === 0 || positionInCycle === 2) {
@@ -61,12 +73,8 @@ function WorkoutPlayer({ workout, onWorkoutComplete, onClose }: WorkoutPlayerPro
   // Calculate total steps in workout (each exercise done twice, in pairs)
   const getTotalSteps = () => {
     const totalExercises = workout.exercises.length;
-    const completePairs = Math.floor(totalExercises / 2);
-    const hasOddExercise = totalExercises % 2 === 1;
-    
-    // Each complete pair contributes 4 steps (ex1, ex2, ex1, ex2)
-    // If there's an odd exercise, it gets done twice (2 steps)
-    return completePairs * 4 + (hasOddExercise ? 2 : 0);
+    // Each exercise is done exactly twice
+    return totalExercises * 2;
   };
 
   const totalSteps = getTotalSteps();
@@ -169,11 +177,22 @@ function WorkoutPlayer({ workout, onWorkoutComplete, onClose }: WorkoutPlayerPro
     const nextStep = workoutStep + 1;
     if (nextStep >= totalSteps) return null;
     
+    const totalExercises = workout.exercises.length;
     const pairGroup = Math.floor(nextStep / 4);
     const positionInCycle = nextStep % 4;
     const baseIndex = pairGroup * 2;
     const firstExerciseIndex = baseIndex;
-    const secondExerciseIndex = Math.min(baseIndex + 1, workout.exercises.length - 1);
+    const secondExerciseIndex = baseIndex + 1;
+    
+    // Handle edge case: if we're at the last exercise and it's odd
+    if (firstExerciseIndex >= totalExercises) {
+      return workout.exercises[totalExercises - 1];
+    }
+    
+    // If second exercise doesn't exist (odd number), use first for all positions
+    if (secondExerciseIndex >= totalExercises) {
+      return workout.exercises[firstExerciseIndex];
+    }
     
     if (positionInCycle === 0 || positionInCycle === 2) {
       return workout.exercises[firstExerciseIndex];
@@ -328,7 +347,7 @@ function TikTokVideoPlayer({
       case 'get-ready':
         return `Exercise ${currentExerciseIndex + 1} of ${totalExercises}: ${exercise.name}`;
       case 'rest':
-        return nextExerciseName ? `Next: Exercise ${currentExerciseIndex + 2} of ${totalExercises}` : null;
+        return nextExerciseName ? `Next: ${nextExerciseName}` : null;
       case 'workout':
       default:
         return null;
