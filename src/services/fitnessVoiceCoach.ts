@@ -1,41 +1,8 @@
-import OpenAI from 'openai';
-import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
 import { 
-  promptGenerators, 
   fallbackMessages, 
   generateTestPrompt,
-  getHardCodedGetReadyMessage,
-  type PromptContext 
+  getHardCodedGetReadyMessage
 } from './fitnessCoachPrompts';
-
-// Initialize OpenAI client (for text generation only)
-const openai = new OpenAI({
-  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true, // Allow client-side usage
-});
-
-// Initialize ElevenLabs client (for TTS only)
-const elevenlabs = new ElevenLabsClient({
-  apiKey: process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY,
-});
-
-// ElevenLabs voice configuration
-const VOICE_CONFIG = {
-  // Using your custom recorded voice from ElevenLabs
-    voiceId: 'MojQmyO0sDHQNLenis1h', // Your custom recorded voice
-  // Alternative pre-made voice options (if you want to switch back):
-  // 'pNInz6obpgDQGcFmaJgB' - Adam - energetic male voice
-  // 'EXAVITQu4vr4xnSDxMaL' - Bella - friendly female
-  // '21m00Tcm4TlvDq8ikWAM' - Rachel - calm female  
-  // 'AZnzlk1XvdvUeBnXmlld' - Domi - confident male
-  // 'VR6AewLTigWG4xSOukaG' - Josh - deep male
-  // 'pqHfZKP75CvOlQylNhV4' - Bill - older male
-  modelId: 'eleven_turbo_v2_5', // Fast, high quality
-  stability: 1, // Adjust for your voice (0.0-1.0: lower = more varied, higher = more consistent)
-  similarityBoost: 1, // Adjust for your voice (0.0-1.0: higher = closer to original)
-  style: 1, // Adjust for expressiveness (0.0-1.0: higher = more expressive)
-  useSpeakerBoost: false, // Enhances clarity of your custom voice
-};
 
 export interface PepTalkOptions {
   exerciseName: string;
@@ -100,49 +67,14 @@ export class FitnessVoiceCoach {
       // Generate text first
       const text = await this.generatePepTalk(options);
       
-      // Generate audio with ElevenLabs TTS
-      const response = await elevenlabs.textToSpeech.convert(
-        VOICE_CONFIG.voiceId,
-        {
-          text: text,
-          modelId: VOICE_CONFIG.modelId,
-          voiceSettings: {
-            stability: VOICE_CONFIG.stability,
-            similarityBoost: VOICE_CONFIG.similarityBoost,
-            style: VOICE_CONFIG.style,
-            useSpeakerBoost: VOICE_CONFIG.useSpeakerBoost,
-          },
-          outputFormat: 'mp3_44100_128',
-        }
-      );
-
-      // Convert ReadableStream to ArrayBuffer, then to Blob
-      const reader = response.getReader();
-      const chunks: Uint8Array[] = [];
-      let done = false;
+      // Generate audio via API route
+      const audioBlob = await this.generateAudioFromText(text);
       
-      while (!done) {
-        const { value, done: readerDone } = await reader.read();
-        done = readerDone;
-        if (value) {
-          chunks.push(value);
-        }
+      if (audioBlob) {
+        // Store audio blob in cache
+        this.audioCache[cacheKey] = audioBlob;
+        console.log(`Pre-generated audio for: ${cacheKey}`);
       }
-      
-      // Combine all chunks into a single Uint8Array
-      const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-      const combinedArray = new Uint8Array(totalLength);
-      let offset = 0;
-      for (const chunk of chunks) {
-        combinedArray.set(chunk, offset);
-        offset += chunk.length;
-      }
-
-      // Store audio blob in cache
-      const audioBlob = new Blob([combinedArray], { type: 'audio/mpeg' });
-      this.audioCache[cacheKey] = audioBlob;
-      
-      console.log(`Pre-generated audio for: ${cacheKey}`);
     } catch (error) {
       console.error('Error pre-generating audio:', error);
     } finally {
@@ -170,58 +102,38 @@ export class FitnessVoiceCoach {
       });
     }
 
-    // Determine message type based on context if not explicitly provided
-    let actualMessageType = messageType;
-    if (messageType === 'general') {
-      if (mode === 'workout') {
-        actualMessageType = 'motivation';
-      } else if (mode === 'rest') {
-        actualMessageType = 'rest-announcement';
-      } else {
-        actualMessageType = 'instruction';
-      }
-    }
-    
-    // Create context for prompt generation
-    const promptContext: PromptContext = {
-      userName,
-      exerciseName,
-      timeRemaining,
-      currentStep,
-      totalSteps,
-    };
-
-    // Get the appropriate prompt generator
-    const promptGenerator = promptGenerators[actualMessageType as keyof typeof promptGenerators];
-    let prompt = '';
-    
-    if (promptGenerator) {
-      prompt = promptGenerator(promptContext);
-    } else {
-      // Fallback to mode-based prompts (get-ready already handled above)
-      switch (mode) {
-        case 'workout':
-          prompt = promptGenerators.workout(promptContext);
-          break;
-        case 'rest':
-          prompt = promptGenerators.rest(promptContext);
-          break;
-        default:
-          prompt = promptGenerators.motivation(promptContext);
-      }
-    }
-
     try {
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 500,
-        temperature: 1,
+      // Call API route to generate pep talk
+      const response = await fetch('/api/generate-pep-talk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(options),
       });
 
-      return completion.choices[0]?.message?.content?.trim() || 'Great job, keep going!';
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.text || 'Great job, keep going!';
+      
     } catch (error) {
       console.error('Error generating pep talk:', error);
+      
+      // Determine message type for fallback
+      let actualMessageType = messageType;
+      if (messageType === 'general') {
+        if (mode === 'workout') {
+          actualMessageType = 'motivation';
+        } else if (mode === 'rest') {
+          actualMessageType = 'rest-announcement';
+        } else {
+          actualMessageType = 'instruction';
+        }
+      }
+      
       // Use centralized fallback messages
       const messages = fallbackMessages[actualMessageType as keyof typeof fallbackMessages] || fallbackMessages['motivation'];
       const selectedMessage = messages[Math.floor(Math.random() * messages.length)];
@@ -233,6 +145,30 @@ export class FitnessVoiceCoach {
     }
   }
 
+  private async generateAudioFromText(text: string): Promise<Blob | null> {
+    try {
+      // Call API route for TTS
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`TTS API request failed: ${response.status}`);
+      }
+
+      // Return the audio blob
+      return await response.blob();
+      
+    } catch (error) {
+      console.error('Error generating audio from text:', error);
+      return null;
+    }
+  }
+
   private async speakText(text: string): Promise<void> {
     if (!this.isEnabled) return;
 
@@ -240,79 +176,20 @@ export class FitnessVoiceCoach {
     this.stopSpeaking();
 
     try {
-      // Use ElevenLabs TTS API for high-quality voice
-      const response = await elevenlabs.textToSpeech.convert(
-        VOICE_CONFIG.voiceId,
-        {
-          text: text,
-          modelId: VOICE_CONFIG.modelId,
-          voiceSettings: {
-            stability: VOICE_CONFIG.stability,
-            similarityBoost: VOICE_CONFIG.similarityBoost,
-            style: VOICE_CONFIG.style,
-            useSpeakerBoost: VOICE_CONFIG.useSpeakerBoost,
-          },
-          outputFormat: 'mp3_44100_128',
-        }
-      );
-
-      // Convert ReadableStream to ArrayBuffer, then to Blob
-      const reader = response.getReader();
-      const chunks: Uint8Array[] = [];
-      let done = false;
+      // Generate audio via API route
+      const audioBlob = await this.generateAudioFromText(text);
       
-      while (!done) {
-        const { value, done: readerDone } = await reader.read();
-        done = readerDone;
-        if (value) {
-          chunks.push(value);
-        }
-      }
-      
-      // Combine all chunks into a single Uint8Array
-      const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-      const combinedArray = new Uint8Array(totalLength);
-      let offset = 0;
-      for (const chunk of chunks) {
-        combinedArray.set(chunk, offset);
-        offset += chunk.length;
+      if (!audioBlob) {
+        console.error('Failed to generate audio blob');
+        return;
       }
 
-      // Convert response to audio blob
-      const audioBlob = new Blob([combinedArray], { type: 'audio/mpeg' });
-      const audioUrl = URL.createObjectURL(audioBlob);
-
-      // Create and play audio element
-      const audio = new Audio(audioUrl);
-      audio.volume = 0.8;
-
-      return new Promise((resolve, reject) => {
-        audio.onended = () => {
-          URL.revokeObjectURL(audioUrl);
-          this.currentUtterance = null;
-          resolve();
-        };
-
-        audio.onerror = (error) => {
-          URL.revokeObjectURL(audioUrl);
-          this.currentUtterance = null;
-          console.error('Audio playback error:', error);
-          // No fallback - fail silently
-          resolve();
-        };
-
-        // Store reference for potential cancellation
-        this.currentUtterance = audio as any;
-        audio.play().catch((error) => {
-          console.error('Failed to play ElevenLabs TTS audio:', error);
-          // No fallback - fail silently
-          resolve();
-        });
-      });
+      // Play the audio blob
+      await this.playAudioBlob(audioBlob);
 
     } catch (error) {
-      console.error('ElevenLabs TTS error:', error);
-      // No fallback - fail silently
+      console.error('TTS error:', error);
+      // Fail silently for TTS errors
       return;
     }
   }
@@ -383,7 +260,7 @@ export class FitnessVoiceCoach {
       };
 
       // Store reference for potential cancellation
-      this.currentUtterance = audio as any;
+      this.currentUtterance = audio;
       audio.play().catch((error) => {
         console.error('Failed to play cached audio:', error);
         URL.revokeObjectURL(audioUrl);
@@ -394,7 +271,7 @@ export class FitnessVoiceCoach {
   }
 
   stopSpeaking(): void {
-    // Stop OpenAI TTS audio if playing
+    // Stop audio if playing
     if (this.currentUtterance) {
       this.currentUtterance.pause();
       this.currentUtterance.currentTime = 0;
