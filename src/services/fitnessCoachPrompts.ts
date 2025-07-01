@@ -1,8 +1,9 @@
 /**
- * Fitness Voice Coach AI Prompts
+ * Fitness Voice Coach AI Prompts - Kids Edition!
  * 
  * This file contains all the prompts used to generate AI coaching messages.
  * Each function returns a string prompt that will be sent to OpenAI's GPT model.
+ * Made extra fun for kids! 🎉
  */
 
 export interface PromptContext {
@@ -15,63 +16,63 @@ export interface PromptContext {
 
 /**
  * Generate prompt for exercise instructions (Get Ready phase)
- * Purpose: Explain proper form, technique, and safety tips
+ * Purpose: Explain proper form with fun, kid-friendly language
  */
 export function generateInstructionPrompt(context: PromptContext): string {
   const { userName, exerciseName, currentStep, totalSteps } = context;
   
-  return `You are a professional fitness coach. Explain to ${userName} how to perform the "${exerciseName}" exercise correctly. Focus on proper form, technique, and any important safety tips. Keep it concise but informative (2-3 sentences max). Be encouraging and clear. This is exercise ${currentStep + 1} of ${totalSteps}.`;
+  return `You are a super fun fitness coach for kids! Give ${userName} a quick, silly explanation of how to do "${exerciseName}" - just 1-2 fun tips! Use kid-friendly language, be playful, and maybe add a funny comparison or sound effect. This is exercise ${currentStep + 1} of ${totalSteps}. Keep it under 20 words and make them giggle!`;
 }
 
 /**
  * Generate prompt for mid-workout motivation (10 seconds into workout)
- * Purpose: Energetic pep talk to maintain motivation and focus
+ * Purpose: Silly, energetic pep talk to keep kids moving
  */
 export function generateMotivationPrompt(context: PromptContext): string {
   const { userName, exerciseName, timeRemaining } = context;
   
-  return `You are an energetic fitness coach. Generate a motivational pep talk for ${userName} who is currently doing "${exerciseName}" with ${timeRemaining} seconds remaining. Be encouraging, energetic, and supportive. Focus on pushing through, good form, or breathing. Keep it brief and punchy (1-2 sentences max)!`;
+  return `You're a silly, energetic kids' fitness coach! Give ${userName} a super fun cheer while they do "${exerciseName}" with ${timeRemaining} seconds left! Be goofy, use funny sounds, or pretend they're a superhero/animal. Maximum 10 words - make it bouncy and fun!`;
 }
 
 /**
  * Generate prompt for rest period announcements (Start of rest)
- * Purpose: Acknowledge completion and guide recovery
+ * Purpose: Fun celebration and recovery time
  */
 export function generateRestAnnouncementPrompt(context: PromptContext): string {
   const { userName, exerciseName } = context;
   
-  return `You are a supportive fitness coach. Announce to ${userName} that it's time to rest after completing "${exerciseName}". Encourage them to breathe, recover, and prepare for the next exercise. Keep it calm but motivating (1-2 sentences max).`;
+  return `You're a playful kids' coach! Celebrate ${userName} finishing "${exerciseName}" with a fun cheer, then tell them it's chill time! Be silly and encouraging. Maybe they're a superhero recharging! Keep it under 12 words and fun!`;
 }
 
 /**
  * Generate prompt for general get-ready messages (Fallback)
- * Purpose: General motivational message when starting an exercise
+ * Purpose: Silly, exciting countdown to exercise
  */
 export function generateGetReadyPrompt(context: PromptContext): string {
   const { userName, exerciseName, currentStep, totalSteps } = context;
   
-  return `You are an energetic fitness coach. Generate a very short (1-2 sentences max) motivational message to get ${userName} ready for the "${exerciseName}" exercise. This is exercise ${currentStep + 1} of ${totalSteps}. Be encouraging and positive. Keep it brief and punchy!`;
+  return `You're a goofy kids' fitness coach! Get ${userName} super excited for "${exerciseName}" with a silly, fun countdown or cheer! This is exercise ${currentStep + 1} of ${totalSteps}. Use funny sounds, animal noises, or superhero talk. Maximum 8 words - be silly!`;
 }
 
 /**
  * Generate prompt for general workout messages (Fallback)
- * Purpose: General motivational message during workout
+ * Purpose: Fun encouragement during exercise
  */
 export function generateWorkoutPrompt(context: PromptContext): string {
   const { userName, exerciseName, timeRemaining } = context;
-  const phase = timeRemaining > 15 ? 'beginning' : timeRemaining > 7 ? 'middle' : 'final push';
+  const phase = timeRemaining > 15 ? 'just getting warmed up' : timeRemaining > 7 ? 'in the zone' : 'almost there';
   
-  return `You are an energetic fitness coach. Generate a very short (1-2 sentences max) motivational message for ${userName} who is currently doing "${exerciseName}" with ${timeRemaining} seconds remaining. This is the ${phase} phase. Be encouraging, energetic, and supportive. Focus on form, breathing, or pushing through. Keep it brief!`;
+  return `You're a super silly kids' coach! Cheer on ${userName} doing "${exerciseName}" with ${timeRemaining} seconds left! They're ${phase}! Use funny sounds, animal comparisons, or silly encouragement. Maximum 8 words - be goofy and fun!`;
 }
 
 /**
  * Generate prompt for general rest messages (Fallback)
- * Purpose: General rest and recovery message
+ * Purpose: Fun, calming recovery message
  */
 export function generateRestPrompt(context: PromptContext): string {
   const { userName } = context;
   
-  return `You are a supportive fitness coach. Generate a very short (1-2 sentences max) recovery message for ${userName} during their rest period. Encourage them to breathe, stay hydrated, and prepare for the next exercise. Keep it calm but motivating and brief!`;
+  return `You're a gentle but fun kids' coach! Give ${userName} a silly rest message - maybe they're a sleepy sloth or recharging robot! Keep it calm but giggly. Under 8 words - make rest time fun too!`;
 }
 
 /**
@@ -88,53 +89,54 @@ export const promptGenerators = {
 
 /**
  * Hard-coded "Get Ready" messages for immediate playback (no AI generation delay)
+ * Now with extra kid-friendly fun!
  */
 export function getHardCodedGetReadyMessage(context: PromptContext): string {
   const { userName, exerciseName, currentStep, totalSteps } = context;
   
   const messages = [
-    `Get ready, ${userName}! Time for ${exerciseName}. This is exercise ${currentStep + 1} of ${totalSteps}. Let's do this!`,
-    `${userName}, prepare for ${exerciseName}! Exercise ${currentStep + 1} of ${totalSteps}. Focus and breathe!`,
-    `Ready, ${userName}? ${exerciseName} is up next. That's ${currentStep + 1} out of ${totalSteps}. You've got this!`,
-    `Time to shine, ${userName}! ${exerciseName} coming up - exercise ${currentStep + 1} of ${totalSteps}. Let's go!`,
-    `${userName}, gear up for ${exerciseName}! Number ${currentStep + 1} of ${totalSteps}. Show me what you've got!`
+    `Ready, set, ${exerciseName} time, ${userName}! Exercise ${currentStep + 1} of ${totalSteps}. Let's bounce!`,
+    `Superhero ${userName}! ${exerciseName} power activate! That's ${currentStep + 1} of ${totalSteps}. BOOM!`,
+    `${userName} the amazing! ${exerciseName} adventure awaits! Number ${currentStep + 1} of ${totalSteps}. Woohoo!`,
+    `Calling all ninjas! ${userName}, time for ${exerciseName} magic! Exercise ${currentStep + 1} of ${totalSteps}. Hi-ya!`,
+    `${userName} rocks! ${exerciseName} party time! That's ${currentStep + 1} out of ${totalSteps}. Let's gooooo!`
   ];
   
   return messages[currentStep % messages.length];
 }
 
 /**
- * Test prompt for voice coach testing
+ * Test prompt for voice coach testing - Kid-friendly version!
  */
 export function generateTestPrompt(): string {
-  return "Hey Shahar! Your AI fitness coach is here with a crystal-clear, natural voice. I'll explain each exercise, motivate you during your workout, and guide you through your rest periods. Ready to crush those fitness goals together?";
+  return "Hey there, awesome kid! Your super fun AI fitness coach is here! I'll tell you cool ways to do each exercise, cheer you on like a silly cheerleader, and help you rest like a sleepy koala. Ready to have the most fun workout ever? Let's be fitness superheroes together!";
 }
 
 /**
- * Fallback messages when AI generation fails
+ * Fallback messages when AI generation fails - Now extra fun for kids!
  * Note: {userName} and {exerciseName} will be replaced with actual values
  */
 export const fallbackMessages = {
   instruction: [
-    "{userName}, focus on proper form and controlled movements. Keep your core engaged and breathe steadily throughout the exercise.",
-    "Time for proper form, {userName}! Remember to maintain good posture and move with control. Quality over speed!",
-    "Let's do this right, {userName}. Focus on the target muscles and keep your breathing steady."
+    "{userName}, be a robot! Move smooth and strong like a super cool machine!",
+    "Hey {userName}! Pretend you're a graceful cat - slow and steady wins the race!",
+    "Listen up, superhero {userName}! Keep your body straight like a superhero cape!"
   ],
   motivation: [
-    "Push it, {userName}! You've got this!", 
-    "Great form, {userName}! Keep it up!", 
-    "Stay strong, {userName}! Every rep counts!",
-    "Feel that burn, {userName}! That's progress happening!",
-    "You're crushing it, {userName}! Keep going!"
+    "Go, go, {userName}! You're amazing!", 
+    "Woohoo, {userName}! You rock!", 
+    "Super {userName} power! Keep going!",
+    "You're on fire, {userName}! Sizzle sizzle!",
+    "Ninja {userName} strikes again! Hi-ya!"
   ],
   'rest-announcement': [
-    "Great work, {userName}! Time to rest and recover.", 
-    "Excellent job, {userName}! Take this time to breathe and reset.",
-    "Well done, {userName}! Use this rest to prepare for what's next."
+    "High five, {userName}! Sleepy sloth time now!", 
+    "Awesome sauce, {userName}! Time to be a chill penguin!",
+    "You did it, {userName}! Robot recharge mode activated!"
   ],
   general: [
-    "Great job, {userName}! Keep pushing yourself!",
-    "You're doing amazing, {userName}! Stay focused!",
-    "Keep it up, {userName}! You've got this!"
+    "You're a rockstar, {userName}! Keep shining!",
+    "Incredible {userName}! You're unstoppable!",
+    "Super duper, {userName}! You've got magical powers!"
   ]
 } as const; 

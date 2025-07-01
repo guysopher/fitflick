@@ -609,18 +609,6 @@ function TikTokVideoPlayer({
             )}
           </div>
           <div className="flex items-center gap-4">
-            {/* Voice Coach Toggle */}
-            <button
-              onClick={() => setVoiceCoachEnabled(!voiceCoachEnabled)}
-              className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xl transition-colors ${
-                voiceCoachEnabled 
-                  ? 'bg-green-600/80 hover:bg-green-600' 
-                  : 'bg-black/50 hover:bg-black/70'
-              }`}
-              title={voiceCoachEnabled ? 'Voice Coach ON' : 'Voice Coach OFF'}
-            >
-              {voiceCoachEnabled ? '🎤' : '🔇'}
-            </button>
             <button
               onClick={onClose}
               className="w-12 h-12 bg-black/50 rounded-full flex items-center justify-center text-white text-xl hover:bg-black/70 transition-colors"

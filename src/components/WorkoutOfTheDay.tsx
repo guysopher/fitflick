@@ -180,20 +180,6 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
             >
               <Play className="w-12 h-12 text-white ml-1 group-hover:scale-110 transition-transform" />
             </button>
-            
-            {/* Voice Coach Test Button */}
-            <button
-              onClick={handleTestVoiceCoach}
-              disabled={isTestingVoice}
-              className="absolute -top-2 -right-2 w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Test Voice Coach"
-            >
-              {isTestingVoice ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Volume2 className="w-5 h-5 text-white" />
-              )}
-            </button>
           </div>
           
           <p className="text-gray-600 text-center mt-4 max-w-xs">
@@ -201,10 +187,6 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
               ? "Great job! You can always do it again to improve your form."
               : "Tap the play button to start your workout and earn today's checkmark!"
             }
-          </p>
-          
-          <p className="text-gray-500 text-center text-xs mt-2 max-w-xs">
-            💬 Tap the voice icon to test your AI fitness coach
           </p>
         </div>
 
