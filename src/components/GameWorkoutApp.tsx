@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Droplets, Share, Play, Pause, RotateCcw, Volume2, VolumeX, Flame, Target } from 'lucide-react';
 import { exercises, Exercise } from '@/data/exercises';
 import { videos } from '@/data/videos';
@@ -68,7 +68,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
   const [phaseTimer, setPhaseTimer] = useState(5); // 5 seconds for get ready, customizable for rest
 
   // Get current video ref based on phase
-  const getCurrentVideoRef = () => {
+  const getCurrentVideoRef = useCallback(() => {
     switch (currentPhase) {
       case 'get-ready':
         return getReadyVideoRef;
@@ -78,7 +78,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
       default:
         return workoutVideoRef;
     }
-  };
+  }, [currentPhase]);
 
 
 
