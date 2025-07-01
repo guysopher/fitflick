@@ -274,7 +274,7 @@ function TikTokVideoPlayer({
       try {
         await video.play();
         setIsPlaying(true);
-      } catch (error) {
+      } catch {
         console.log('Auto-play failed, user interaction required');
         setIsPlaying(false);
       }
@@ -354,14 +354,7 @@ function TikTokVideoPlayer({
     }
   };
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'Beginner': return 'bg-green-500';
-      case 'Intermediate': return 'bg-yellow-500';
-      case 'Advanced': return 'bg-red-500';
-      default: return 'bg-gray-500';
-    }
-  };
+
 
   return (
     <div className="fixed inset-0 bg-black z-50">

@@ -80,18 +80,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
     }
   };
 
-  // Get current video URL based on phase
-  const getCurrentVideoUrl = () => {
-    switch (currentPhase) {
-      case 'get-ready':
-        return '/videos/Ready.mp4';
-      case 'rest':
-        return '/videos/Resting.mp4';
-      case 'workout':
-      default:
-        return exercise.videoUrl;
-    }
-  };
+
 
   // Get video metadata for speed adjustment
   const videoMetadata = getVideoMetadata(exercise.videoUrl);
@@ -143,7 +132,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
         });
       }
     }
-  }, [currentPhase]);
+  }, [currentPhase, getCurrentVideoRef]);
 
   useEffect(() => {
     const video = getCurrentVideoRef().current;
@@ -190,7 +179,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
     };
-  }, [onWorkoutComplete, videoSpeed, currentPhase]);
+  }, [onWorkoutComplete, videoSpeed, currentPhase, getCurrentVideoRef]);
 
   const togglePlay = () => {
     const video = getCurrentVideoRef().current;

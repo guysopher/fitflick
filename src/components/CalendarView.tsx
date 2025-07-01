@@ -172,7 +172,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onWorkoutSelect }) => {
               Ready for today&apos;s workout?
             </h3>
             <p className="text-gray-600 text-sm">
-              Complete today's session to earn your checkmark!
+              Complete today&apos;s session to earn your checkmark!
             </p>
           </div>
 
