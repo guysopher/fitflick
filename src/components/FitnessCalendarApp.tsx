@@ -250,7 +250,8 @@ function TikTokVideoPlayer({
   const [animationIcon, setAnimationIcon] = useState<'play' | 'pause'>('play');
   const [voiceCoachEnabled, setVoiceCoachEnabled] = useState(true);
   const voiceCoach = React.useRef<FitnessVoiceCoach | null>(null);
-  const pepTalkIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+  const pepTalkTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const hasDeliveredMotivation = React.useRef<boolean>(false);
 
   // Function to play tabata beep sequence
   const playTabataBeepSequence = () => {
@@ -325,8 +326,8 @@ function TikTokVideoPlayer({
       if (voiceCoach.current) {
         voiceCoach.current.stopSpeaking();
       }
-      if (pepTalkIntervalRef.current) {
-        clearInterval(pepTalkIntervalRef.current);
+      if (pepTalkTimeoutRef.current) {
+        clearTimeout(pepTalkTimeoutRef.current);
       }
     };
   }, []);
@@ -338,49 +339,132 @@ function TikTokVideoPlayer({
     }
   }, [voiceCoachEnabled]);
 
-  // Deliver immediate pep talk when mode changes (transitions)
+  // Handle immediate voice coaching and pre-generation when mode changes
   React.useEffect(() => {
     if (!voiceCoach.current || !voiceCoachEnabled) return;
 
-    const pepTalkOptions: PepTalkOptions = {
-      exerciseName: exercise.name,
-      timeRemaining: currentTimer,
-      currentStep: currentExerciseIndex,
-      totalSteps: totalExercises,
-      userName: 'Shahar',
-      mode: mode
-    };
+    if (mode === 'get-ready') {
+      // Immediate: Play hard-coded get-ready message
+      const getReadyOptions: PepTalkOptions = {
+        exerciseName: exercise.name,
+        timeRemaining: currentTimer,
+        currentStep: currentExerciseIndex,
+        totalSteps: totalExercises,
+        userName: 'Shahar',
+        mode: 'get-ready'
+      };
 
-    // Delay the pep talk slightly to avoid conflicts with video loading
-    const timeout = setTimeout(() => {
-      voiceCoach.current?.deliverImmediatePepTalk(pepTalkOptions);
-    }, 1000);
+      // Play get-ready message immediately (hard-coded, no lag)
+      const timeout = setTimeout(() => {
+        voiceCoach.current?.deliverImmediatePepTalk(getReadyOptions);
+      }, 500);
 
-    return () => clearTimeout(timeout);
+      // Pre-generate: Instruction message for when workout starts
+      const instructionOptions: PepTalkOptions = {
+        exerciseName: exercise.name,
+        timeRemaining: 20,
+        currentStep: currentExerciseIndex,
+        totalSteps: totalExercises,
+        userName: 'Shahar',
+        mode: 'workout',
+        messageType: 'instruction'
+      };
+
+      voiceCoach.current.preGenerateAudio(instructionOptions);
+
+      // Pre-generate: Motivation message for 10 seconds into workout
+      const motivationOptions: PepTalkOptions = {
+        exerciseName: exercise.name,
+        timeRemaining: 10,
+        currentStep: currentExerciseIndex,
+        totalSteps: totalExercises,
+        userName: 'Shahar',
+        mode: 'workout',
+        messageType: 'motivation'
+      };
+
+      voiceCoach.current.preGenerateAudio(motivationOptions);
+
+      return () => clearTimeout(timeout);
+
+    } else if (mode === 'rest') {
+      // Immediate: Play rest announcement
+      const restOptions: PepTalkOptions = {
+        exerciseName: exercise.name,
+        timeRemaining: currentTimer,
+        currentStep: currentExerciseIndex,
+        totalSteps: totalExercises,
+        userName: 'Shahar',
+        mode: 'rest',
+        messageType: 'rest-announcement'
+      };
+
+      const timeout = setTimeout(() => {
+        voiceCoach.current?.deliverImmediatePepTalk(restOptions);
+      }, 500);
+
+      return () => clearTimeout(timeout);
+    }
+    // Note: For workout mode, voice coaching is handled by the 10-second timeout below
   }, [mode, exercise.name]);
 
-  // Set up pep talk interval during workout
+  // Reset motivation flag when mode changes
+  React.useEffect(() => {
+    hasDeliveredMotivation.current = false;
+    
+    // Clear any pending motivation timeout
+    if (pepTalkTimeoutRef.current) {
+      clearTimeout(pepTalkTimeoutRef.current);
+      pepTalkTimeoutRef.current = null;
+    }
+  }, [mode, exercise.name]);
+
+  // Handle workout phase voice coaching
   React.useEffect(() => {
     if (mode === 'workout' && isPlaying && voiceCoachEnabled && voiceCoach.current) {
-      pepTalkIntervalRef.current = setInterval(() => {
-        const pepTalkOptions: PepTalkOptions = {
-          exerciseName: exercise.name,
-          timeRemaining: currentTimer,
-          currentStep: currentExerciseIndex,
-          totalSteps: totalExercises,
-          userName: 'Shahar',
-          mode: 'workout'
-        };
-        voiceCoach.current?.deliverPepTalk(pepTalkOptions);
-      }, 6000); // Every 6 seconds during workout
-
-      return () => {
-        if (pepTalkIntervalRef.current) {
-          clearInterval(pepTalkIntervalRef.current);
-        }
+      
+      // Immediate: Play instruction message (should be pre-generated)
+      const instructionOptions: PepTalkOptions = {
+        exerciseName: exercise.name,
+        timeRemaining: 20,
+        currentStep: currentExerciseIndex,
+        totalSteps: totalExercises,
+        userName: 'Shahar',
+        mode: 'workout',
+        messageType: 'instruction'
       };
+
+      // Play instruction immediately
+      setTimeout(() => {
+        voiceCoach.current?.deliverImmediatePepTalk(instructionOptions);
+      }, 500);
+
+      // Schedule motivation pep talk for 10 seconds into the workout (should be pre-generated)
+      if (!hasDeliveredMotivation.current) {
+        pepTalkTimeoutRef.current = setTimeout(() => {
+          if (voiceCoach.current && voiceCoachEnabled && !hasDeliveredMotivation.current) {
+            const motivationOptions: PepTalkOptions = {
+              exerciseName: exercise.name,
+              timeRemaining: currentTimer,
+              currentStep: currentExerciseIndex,
+              totalSteps: totalExercises,
+              userName: 'Shahar',
+              mode: 'workout',
+              messageType: 'motivation'
+            };
+            voiceCoach.current.deliverImmediatePepTalk(motivationOptions);
+            hasDeliveredMotivation.current = true;
+          }
+        }, 10000); // 10 seconds delay
+
+        return () => {
+          if (pepTalkTimeoutRef.current) {
+            clearTimeout(pepTalkTimeoutRef.current);
+          }
+        };
+      }
     }
-  }, [mode, isPlaying, voiceCoachEnabled, exercise.name, currentTimer]);
+  }, [mode, isPlaying, voiceCoachEnabled]);
 
   React.useEffect(() => {
     const video = videoRef.current;
