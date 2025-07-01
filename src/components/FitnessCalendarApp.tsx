@@ -510,12 +510,12 @@ function TikTokVideoPlayer({
             transform: scale(0.5);
           }
           50% {
-            opacity: 1;
-            transform: scale(1.1);
+            opacity: 0.8;
+            transform: scale(2.1);
           }
           100% {
             opacity: 0;
-            transform: scale(1);
+            transform: scale(2);
           }
         }
       `}</style>
