@@ -12,6 +12,8 @@ interface BackgroundMusicProps {
 export interface BackgroundMusicRef {
   startMusic: () => Promise<void>;
   stopMusic: () => void;
+  pauseMusic: () => void;
+  resumeMusic: () => void;
   isPlaying: boolean;
   isLoaded: boolean;
 }
@@ -134,10 +136,39 @@ const BackgroundMusic = forwardRef<BackgroundMusicRef, BackgroundMusicProps>(({
     }
   };
 
+  const pauseMusic = () => {
+    const audio = audioRef.current;
+    if (!audio || !isPlaying) return;
+
+    console.log('🎵 Pausing background music');
+    audio.pause();
+    setIsPlaying(false);
+    
+    if (fadeIntervalRef.current) {
+      clearInterval(fadeIntervalRef.current);
+      fadeIntervalRef.current = null;
+    }
+  };
+
+  const resumeMusic = () => {
+    const audio = audioRef.current;
+    if (!audio || isPlaying || !isLoaded) return;
+
+    console.log('🎵 Resuming background music');
+    audio.play().then(() => {
+      console.log('🎵 Background music resumed successfully');
+      setIsPlaying(true);
+    }).catch(error => {
+      console.error('🎵 Failed to resume background music:', error);
+    });
+  };
+
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     startMusic,
     stopMusic,
+    pauseMusic,
+    resumeMusic,
     isPlaying,
     isLoaded
   }));
@@ -317,30 +348,7 @@ const BackgroundMusic = forwardRef<BackgroundMusicRef, BackgroundMusicProps>(({
 
   return (
     <>
-      {/* Music Playing Indicator */}
-      {isLoaded && isPlaying && !isSuspended && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          background: 'rgba(0, 0, 0, 0.8)',
-          color: 'white',
-          padding: '8px 12px',
-          borderRadius: '20px',
-          fontSize: '12px',
-          zIndex: 1000,
-          pointerEvents: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px'
-        }}>
-          <span style={{ 
-            animation: 'pulse 1.5s ease-in-out infinite alternate',
-            display: 'inline-block'
-          }}>🎵</span>
-          Music Playing (Vol: {Math.round(currentVolume * 100)}%)
-        </div>
-      )}
+
 
       {/* Suspended Music Indicator with Resume Button */}
       {isLoaded && isSuspended && (

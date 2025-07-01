@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
 import { 
   promptGenerators, 
   fallbackMessages, 
@@ -7,11 +8,34 @@ import {
   type PromptContext 
 } from './fitnessCoachPrompts';
 
-// Initialize OpenAI client
+// Initialize OpenAI client (for text generation only)
 const openai = new OpenAI({
   apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
   dangerouslyAllowBrowser: true, // Allow client-side usage
 });
+
+// Initialize ElevenLabs client (for TTS only)
+const elevenlabs = new ElevenLabsClient({
+  apiKey: process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY,
+});
+
+// ElevenLabs voice configuration
+const VOICE_CONFIG = {
+  // Using your custom recorded voice from ElevenLabs
+    voiceId: 'MojQmyO0sDHQNLenis1h', // Your custom recorded voice
+  // Alternative pre-made voice options (if you want to switch back):
+  // 'pNInz6obpgDQGcFmaJgB' - Adam - energetic male voice
+  // 'EXAVITQu4vr4xnSDxMaL' - Bella - friendly female
+  // '21m00Tcm4TlvDq8ikWAM' - Rachel - calm female  
+  // 'AZnzlk1XvdvUeBnXmlld' - Domi - confident male
+  // 'VR6AewLTigWG4xSOukaG' - Josh - deep male
+  // 'pqHfZKP75CvOlQylNhV4' - Bill - older male
+  modelId: 'eleven_turbo_v2_5', // Fast, high quality
+  stability: 1, // Adjust for your voice (0.0-1.0: lower = more varied, higher = more consistent)
+  similarityBoost: 1, // Adjust for your voice (0.0-1.0: higher = closer to original)
+  style: 1, // Adjust for expressiveness (0.0-1.0: higher = more expressive)
+  useSpeakerBoost: false, // Enhances clarity of your custom voice
+};
 
 export interface PepTalkOptions {
   exerciseName: string;
@@ -76,16 +100,46 @@ export class FitnessVoiceCoach {
       // Generate text first
       const text = await this.generatePepTalk(options);
       
-      // Generate audio with OpenAI TTS
-      const response = await openai.audio.speech.create({
-        model: 'tts-1-hd',
-        voice: 'nova',
-        input: text,
-        speed: 1,
-      });
+      // Generate audio with ElevenLabs TTS
+      const response = await elevenlabs.textToSpeech.convert(
+        VOICE_CONFIG.voiceId,
+        {
+          text: text,
+          modelId: VOICE_CONFIG.modelId,
+          voiceSettings: {
+            stability: VOICE_CONFIG.stability,
+            similarityBoost: VOICE_CONFIG.similarityBoost,
+            style: VOICE_CONFIG.style,
+            useSpeakerBoost: VOICE_CONFIG.useSpeakerBoost,
+          },
+          outputFormat: 'mp3_44100_128',
+        }
+      );
+
+      // Convert ReadableStream to ArrayBuffer, then to Blob
+      const reader = response.getReader();
+      const chunks: Uint8Array[] = [];
+      let done = false;
+      
+      while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        done = readerDone;
+        if (value) {
+          chunks.push(value);
+        }
+      }
+      
+      // Combine all chunks into a single Uint8Array
+      const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+      const combinedArray = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        combinedArray.set(chunk, offset);
+        offset += chunk.length;
+      }
 
       // Store audio blob in cache
-      const audioBlob = new Blob([await response.arrayBuffer()], { type: 'audio/mpeg' });
+      const audioBlob = new Blob([combinedArray], { type: 'audio/mpeg' });
       this.audioCache[cacheKey] = audioBlob;
       
       console.log(`Pre-generated audio for: ${cacheKey}`);
@@ -186,16 +240,46 @@ export class FitnessVoiceCoach {
     this.stopSpeaking();
 
     try {
-      // Use OpenAI's TTS API for high-quality voice
-      const response = await openai.audio.speech.create({
-        model: 'tts-1-hd', // Use tts-1 for faster response, tts-1-hd for higher quality
-        voice: 'nova', // Nova has an energetic, friendly tone perfect for fitness coaching
-        input: text,
-        speed: 1, // Slightly faster for energy
-      });
+      // Use ElevenLabs TTS API for high-quality voice
+      const response = await elevenlabs.textToSpeech.convert(
+        VOICE_CONFIG.voiceId,
+        {
+          text: text,
+          modelId: VOICE_CONFIG.modelId,
+          voiceSettings: {
+            stability: VOICE_CONFIG.stability,
+            similarityBoost: VOICE_CONFIG.similarityBoost,
+            style: VOICE_CONFIG.style,
+            useSpeakerBoost: VOICE_CONFIG.useSpeakerBoost,
+          },
+          outputFormat: 'mp3_44100_128',
+        }
+      );
+
+      // Convert ReadableStream to ArrayBuffer, then to Blob
+      const reader = response.getReader();
+      const chunks: Uint8Array[] = [];
+      let done = false;
+      
+      while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        done = readerDone;
+        if (value) {
+          chunks.push(value);
+        }
+      }
+      
+      // Combine all chunks into a single Uint8Array
+      const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+      const combinedArray = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        combinedArray.set(chunk, offset);
+        offset += chunk.length;
+      }
 
       // Convert response to audio blob
-      const audioBlob = new Blob([await response.arrayBuffer()], { type: 'audio/mpeg' });
+      const audioBlob = new Blob([combinedArray], { type: 'audio/mpeg' });
       const audioUrl = URL.createObjectURL(audioBlob);
 
       // Create and play audio element
@@ -220,20 +304,18 @@ export class FitnessVoiceCoach {
         // Store reference for potential cancellation
         this.currentUtterance = audio as any;
         audio.play().catch((error) => {
-          console.error('Failed to play OpenAI TTS audio:', error);
+          console.error('Failed to play ElevenLabs TTS audio:', error);
           // No fallback - fail silently
           resolve();
         });
       });
 
     } catch (error) {
-      console.error('OpenAI TTS error:', error);
+      console.error('ElevenLabs TTS error:', error);
       // No fallback - fail silently
       return;
     }
   }
-
-
 
   async deliverPepTalk(options: PepTalkOptions): Promise<void> {
     if (!this.isEnabled) return;

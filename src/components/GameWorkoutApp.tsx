@@ -5,6 +5,7 @@ import { Droplets, Share, Play, Pause, RotateCcw, Volume2, VolumeX, Flame, Targe
 import { exercises, Exercise } from '@/data/exercises';
 import { videos } from '@/data/videos';
 import { FitnessVoiceCoach } from '@/services/fitnessVoiceCoach';
+import BackgroundMusic, { BackgroundMusicRef } from './BackgroundMusic';
 
 interface UserProgress {
   level: number;
@@ -51,11 +52,12 @@ interface TikTokVideoPlayerProps {
   exercise: Exercise;
   onWorkoutComplete: () => void;
   onClose: () => void;
+  backgroundMusicRef?: React.RefObject<BackgroundMusicRef | null>;
 }
 
 type WorkoutPhase = 'get-ready' | 'workout' | 'rest';
 
-function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideoPlayerProps) {
+function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose, backgroundMusicRef }: TikTokVideoPlayerProps) {
   
   const getReadyVideoRef = useRef<HTMLVideoElement>(null);
   const workoutVideoRef = useRef<HTMLVideoElement>(null);
@@ -69,6 +71,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
   const [workoutProgress, setWorkoutProgress] = useState(0);
   const [currentPhase, setCurrentPhase] = useState<WorkoutPhase>('get-ready');
   const [phaseTimer, setPhaseTimer] = useState(5); // 5 seconds for get ready, customizable for rest
+  const [isPausedByUser, setIsPausedByUser] = useState(false); // Track user-initiated pause
 
   // Get current video ref based on phase
   const getCurrentVideoRef = useCallback(() => {
@@ -101,7 +104,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
 
   // Timer effect for get-ready and rest phases
   useEffect(() => {
-    if (currentPhase === 'get-ready' || currentPhase === 'rest') {
+    if ((currentPhase === 'get-ready' || currentPhase === 'rest') && !isPausedByUser) {
       const timer = setInterval(() => {
         setPhaseTimer(prev => {
           if (prev <= 1) {
@@ -121,7 +124,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
 
       return () => clearInterval(timer);
     }
-  }, [currentPhase, onWorkoutComplete]);
+  }, [currentPhase, isPausedByUser, onWorkoutComplete]);
 
   // Simple effect to handle phase changes and video playback
   useEffect(() => {
@@ -130,6 +133,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
     // Reset states when phase changes
     setCurrentTime(0);
     setDuration(0);
+    setIsPausedByUser(false); // Reset pause state on phase change
     
     // Handle video playback for each phase
     const currentVideo = getCurrentVideoRef().current;
@@ -206,8 +210,14 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
       video.pause();
       // Stop voice coaching when video is paused
       voiceCoachRef.current?.stopSpeaking();
+      // Pause background music
+      backgroundMusicRef?.current?.pauseMusic();
+      setIsPausedByUser(true);
     } else {
       video.play();
+      // Resume background music
+      backgroundMusicRef?.current?.resumeMusic();
+      setIsPausedByUser(false);
     }
     setIsPlaying(!isPlaying);
   };
@@ -467,6 +477,7 @@ export default function GameWorkoutApp() {
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [showJoke, setShowJoke] = useState(false);
   const [todayJoke, setTodayJoke] = useState('');
+  const backgroundMusicRef = useRef<BackgroundMusicRef>(null);
   
   const [userProgress, setUserProgress] = useState<UserProgress>({
     level: 1,
@@ -764,11 +775,21 @@ export default function GameWorkoutApp() {
   // Workout Screen
   if (currentScreen === 'workout' && selectedExercise) {
           return (
-        <TikTokVideoPlayer
-          exercise={selectedExercise}
-          onWorkoutComplete={handleWorkoutComplete}
-          onClose={() => setCurrentScreen('home')}
-        />
+        <>
+          <BackgroundMusic 
+            ref={backgroundMusicRef}
+            isActive={true} 
+            volume={0.3} 
+            fadeInDuration={2000}
+            onLoadError={() => console.error('Background music failed to load')}
+          />
+          <TikTokVideoPlayer
+            exercise={selectedExercise}
+            onWorkoutComplete={handleWorkoutComplete}
+            onClose={() => setCurrentScreen('home')}
+            backgroundMusicRef={backgroundMusicRef}
+          />
+        </>
       );
   }
 

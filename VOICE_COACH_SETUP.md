@@ -1,7 +1,7 @@
 # Fitness Voice Coach Setup Guide
 
 ## Overview
-The Fitness Voice Coach uses OpenAI's GPT-4o-mini model to generate personalized motivational messages for Shahar during workouts, and uses OpenAI's high-quality Text-to-Speech API to deliver them with natural, professional-sounding voice.
+The Fitness Voice Coach uses OpenAI's GPT-4o-mini model to generate personalized motivational messages for Shahar during workouts, and uses ElevenLabs' premium Text-to-Speech API to deliver them with natural, high-quality voice.
 
 ## Features
 - **Lag-Free Performance**: Smart pre-generation system eliminates voice delays
@@ -11,29 +11,38 @@ The Fitness Voice Coach uses OpenAI's GPT-4o-mini model to generate personalized
 - **Exercise Instructions**: Detailed form and technique guidance at the start of each exercise
 - **Motivational Support**: Mid-workout pep talks delivered 10 seconds into each exercise
 - **Rest Guidance**: Supportive rest announcements when break periods begin
-- **Professional Voice Quality**: Uses OpenAI's TTS API with "Nova" voice for natural, energetic coaching tone
+- **Premium Voice Quality**: Uses ElevenLabs' advanced TTS with customizable voices for natural, expressive coaching tone
 - **Voice Control**: Toggle the voice coach on/off with the microphone button in the workout player
-- **Intelligent Fallback**: Falls back to browser speech synthesis if OpenAI TTS fails, ensuring continuous motivation
 - **Smart Caching**: Audio caching system prevents repeated generation of the same messages
 
 ## Setup Instructions
 
-### 1. Get OpenAI API Key
+### 1. Get API Keys
+
+#### OpenAI API Key (for text generation)
 1. Visit [OpenAI Platform](https://platform.openai.com/account/api-keys)
 2. Sign up or log in to your account
 3. Create a new API key
 4. Copy the API key (starts with `sk-`)
 
+#### ElevenLabs API Key (for voice synthesis)
+1. Visit [ElevenLabs Platform](https://elevenlabs.io/app/speech-synthesis/text-to-speech)
+2. Sign up or log in to your account
+3. Go to your Profile settings
+4. Create a new API key
+5. Copy the API key
+
 ### 2. Configure Environment Variables
 Create a `.env.local` file in the `fitflick/` directory and add:
 
 ```bash
-NEXT_PUBLIC_OPENAI_API_KEY=your_actual_api_key_here
+NEXT_PUBLIC_OPENAI_API_KEY=your_openai_api_key_here
+NEXT_PUBLIC_ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
 ```
 
 **Important Security Notes:**
-- Never commit your API key to version control
-- The `NEXT_PUBLIC_` prefix makes this available in the browser
+- Never commit your API keys to version control
+- The `NEXT_PUBLIC_` prefix makes these available in the browser
 - For production apps, consider using server-side API routes instead
 
 ### 3. Install Dependencies
@@ -140,54 +149,70 @@ In `FitnessCalendarApp.tsx`, modify the motivation delay:
 ```
 
 ### Voice Settings
-In `fitnessVoiceCoach.ts`, adjust OpenAI TTS parameters:
+In `fitnessVoiceCoach.ts`, adjust ElevenLabs voice parameters:
 
 ```typescript
-const response = await openai.audio.speech.create({
-  model: 'tts-1', // Use 'tts-1-hd' for higher quality (slower)
-  voice: 'nova', // Options: alloy, echo, fable, onyx, nova, shimmer
-  speed: 1.1, // Speech speed (0.25 to 4.0)
-});
+const VOICE_CONFIG = {
+  voiceId: 'pNInz6obpgDQGcFmaJgB', // Adam - energetic male voice
+  modelId: 'eleven_turbo_v2_5', // Fast, high quality
+  stability: 0.5,
+  similarityBoost: 0.75,
+  style: 0.5,
+  useSpeakerBoost: true,
+};
 ```
 
-Voice personality guide:
-- **alloy**: Neutral, balanced
-- **echo**: Male, clear
-- **fable**: British accent, expressive
-- **onyx**: Male, deep, authoritative
-- **nova**: Female, energetic (current choice)
-- **shimmer**: Female, soft, gentle
+#### Popular ElevenLabs Voice Options:
+- **pNInz6obpgDQGcFmaJgB** (Adam): Energetic male voice - great for fitness motivation
+- **EXAVITQu4vr4xnSDxMaL** (Bella): Friendly female voice
+- **21m00Tcm4TlvDq8ikWAM** (Rachel): Calm, professional female voice
+- **AZnzlk1XvdvUeBnXmlld** (Domi): Confident male voice
+- **VR6AewLTigWG4xSOukaG** (Josh): Deep, authoritative male voice
+- **pqHfZKP75CvOlQylNhV4** (Bill): Older, wise-sounding male voice
+
+#### Voice Setting Guidelines:
+- **Stability** (0.0-1.0): Lower = more varied, Higher = more consistent
+- **Similarity Boost** (0.0-1.0): Higher = closer to original voice
+- **Style** (0.0-1.0): Controls expressiveness and emotion
+- **Speaker Boost**: Enhances speaker clarity
 
 ## Troubleshooting
 
 ### No Voice Output
-- Check if your browser supports Speech Synthesis API
+- Check if your browser supports audio playback
 - Ensure your device volume is turned up
 - Try clicking the microphone button to toggle off and on
 - Check browser console for any error messages
 
 ### API Errors
 - Verify your OpenAI API key is correct
-- Check that you have credits in your OpenAI account
+- Verify your ElevenLabs API key is correct
+- Check that you have credits in both your OpenAI and ElevenLabs accounts
 - Ensure the `.env.local` file is in the correct location
 - Restart the development server after adding environment variables
 
 ### Voice Quality
-- Uses OpenAI's "Nova" voice for natural, energetic coaching tone
-- Falls back to browser's built-in speech synthesis if OpenAI TTS fails
-- You can change the voice by modifying the `voice` parameter in the `speakText()` method
-- Available OpenAI voices: alloy, echo, fable, onyx, nova, shimmer
+- Uses ElevenLabs' premium TTS models for natural, expressive speech
+- Supports multiple voice personalities and languages
+- Voice selection can be changed by updating the `voiceId` in `VOICE_CONFIG`
+- For optimal quality, use `eleven_turbo_v2_5` or `eleven_multilingual_v2` models
 
 ## Cost Considerations
-- Each pep talk uses two OpenAI API calls:
-  - Text generation: ~500 tokens (GPT-4o-mini)
-  - Text-to-speech: ~1-2 sentences of audio
+- **Text Generation**: Uses OpenAI GPT-4o-mini (~500 tokens per pep talk)
+- **Voice Synthesis**: Uses ElevenLabs TTS (~1-2 sentences of audio per message)
 - A typical 20-minute workout might generate 40-60 pep talks
-- Estimated cost: ~$0.05-0.10 per workout (very affordable)
-- Fallback to free browser speech synthesis if API is unavailable
+- Estimated cost: ~$0.10-0.20 per workout (ElevenLabs is slightly more expensive than OpenAI TTS but offers superior voice quality)
+- ElevenLabs offers different pricing tiers based on usage
 
 ## Browser Compatibility
-- **Chrome/Edge**: Full support with high-quality voices
-- **Safari**: Good support with system voices
-- **Firefox**: Basic support, may have limited voice options
-- **Mobile**: Works on iOS Safari and Android Chrome 
+- **Chrome/Edge**: Full support with high-quality audio playback
+- **Safari**: Good support with system audio
+- **Firefox**: Basic support, may have limited audio features
+- **Mobile**: Works on iOS Safari and Android Chrome
+
+## Why ElevenLabs?
+- **Superior Voice Quality**: More natural and expressive than OpenAI TTS
+- **Better Emotional Range**: Perfect for fitness motivation and coaching
+- **Multiple Voice Options**: Wide variety of personalities and accents
+- **Customizable Settings**: Fine-tune voice characteristics for your preference
+- **Professional Audio**: Higher quality output suitable for fitness applications 

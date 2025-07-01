@@ -27,15 +27,17 @@ interface WorkoutPlayerProps {
   workout: typeof beginnerToAdvancedWorkout;
   onWorkoutComplete: () => void;
   onClose: () => void;
+  backgroundMusicRef?: React.RefObject<BackgroundMusicRef | null>;
 }
 
-function WorkoutPlayer({ workout, onWorkoutComplete, onClose }: WorkoutPlayerProps) {
+function WorkoutPlayer({ workout, onWorkoutComplete, onClose, backgroundMusicRef }: WorkoutPlayerProps) {
   // Workout sequence state
   const [workoutStep, setWorkoutStep] = useState(0); // Overall step counter
   const [isWorkoutActive, setIsWorkoutActive] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(10); // Get ready timer
   const [isResting, setIsResting] = useState(false);
   const [restTimer, setRestTimer] = useState(10);
+  const [isPaused, setIsPaused] = useState(false); // Track pause state
 
   // Calculate current exercise based on the pattern
   const getCurrentExercise = () => {
@@ -123,7 +125,7 @@ function WorkoutPlayer({ workout, onWorkoutComplete, onClose }: WorkoutPlayerPro
 
   // Handle countdown timer (get ready)
   React.useEffect(() => {
-    if (countdown !== null && countdown > 0) {
+    if (countdown !== null && countdown > 0 && !isPaused) {
       const timer = setTimeout(() => {
         setCountdown(countdown - 1);
       }, 1000);
@@ -132,11 +134,11 @@ function WorkoutPlayer({ workout, onWorkoutComplete, onClose }: WorkoutPlayerPro
       setIsWorkoutActive(true);
       setCountdown(null);
     }
-  }, [countdown]);
+  }, [countdown, isPaused]);
 
   // Handle rest timer
   React.useEffect(() => {
-    if (isResting && restTimer > 0) {
+    if (isResting && restTimer > 0 && !isPaused) {
       const timer = setTimeout(() => {
         setRestTimer(restTimer - 1);
       }, 1000);
@@ -149,7 +151,7 @@ function WorkoutPlayer({ workout, onWorkoutComplete, onClose }: WorkoutPlayerPro
       setIsWorkoutActive(true);
       setRestTimer(10); // Reset for next rest
     }
-  }, [isResting, restTimer, workoutStep]);
+  }, [isResting, restTimer, workoutStep, isPaused]);
 
   // Always use TikTokVideoPlayer with appropriate mode
   const getMode = (): PlayerMode => {
@@ -215,6 +217,9 @@ function WorkoutPlayer({ workout, onWorkoutComplete, onClose }: WorkoutPlayerPro
       nextExerciseName={nextExercise?.name}
       currentExerciseIndex={workoutStep}
       totalExercises={totalSteps}
+      isPaused={isPaused}
+      onPauseChange={setIsPaused}
+      backgroundMusicRef={backgroundMusicRef}
     />
   );
 }
@@ -231,6 +236,9 @@ interface TikTokVideoPlayerProps {
   nextExerciseName?: string;
   currentExerciseIndex?: number;
   totalExercises?: number;
+  isPaused?: boolean;
+  onPauseChange?: (paused: boolean) => void;
+  backgroundMusicRef?: React.RefObject<BackgroundMusicRef | null>;
 }
 
 function TikTokVideoPlayer({ 
@@ -241,7 +249,10 @@ function TikTokVideoPlayer({
   onClose, 
   nextExerciseName,
   currentExerciseIndex = 0,
-  totalExercises = 1
+  totalExercises = 1,
+  isPaused = false,
+  onPauseChange,
+  backgroundMusicRef
 }: TikTokVideoPlayerProps) {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -435,7 +446,7 @@ function TikTokVideoPlayer({
 
   // Handle workout phase voice coaching
   React.useEffect(() => {
-    if (mode === 'workout' && isPlaying && voiceCoachEnabled && voiceCoach.current) {
+    if (mode === 'workout' && isPlaying && !isPaused && voiceCoachEnabled && voiceCoach.current) {
       
       // Immediate: Play instruction message (should be pre-generated)
       const instructionOptions: PepTalkOptions = {
@@ -456,7 +467,7 @@ function TikTokVideoPlayer({
       // Schedule motivation pep talk for 10 seconds into the workout (should be pre-generated)
       if (!hasDeliveredMotivation.current) {
         pepTalkTimeoutRef.current = setTimeout(() => {
-          if (voiceCoach.current && voiceCoachEnabled && !hasDeliveredMotivation.current) {
+          if (voiceCoach.current && voiceCoachEnabled && !hasDeliveredMotivation.current && !isPaused) {
             const motivationOptions: PepTalkOptions = {
               exerciseName: exercise.name,
               timeRemaining: currentTimer,
@@ -478,7 +489,13 @@ function TikTokVideoPlayer({
         };
       }
     }
-  }, [mode, isPlaying, voiceCoachEnabled]);
+    
+    // Clear pending voice coaching if paused
+    if (isPaused && pepTalkTimeoutRef.current) {
+      clearTimeout(pepTalkTimeoutRef.current);
+      pepTalkTimeoutRef.current = null;
+    }
+  }, [mode, isPlaying, isPaused, voiceCoachEnabled]);
 
   React.useEffect(() => {
     const video = videoRef.current;
@@ -521,7 +538,7 @@ function TikTokVideoPlayer({
 
   // Timer countdown for workout mode
   React.useEffect(() => {
-    if (mode === 'workout' && isPlaying && currentTimer > 0) {
+    if (mode === 'workout' && isPlaying && !isPaused && currentTimer > 0) {
       const timerInterval = setInterval(() => {
         setCurrentTimer(prev => {
           if (prev <= 1) {
@@ -533,16 +550,16 @@ function TikTokVideoPlayer({
       }, 1000);
       return () => clearInterval(timerInterval);
     }
-  }, [mode, isPlaying, currentTimer, onWorkoutComplete]);
+  }, [mode, isPlaying, isPaused, currentTimer, onWorkoutComplete]);
 
   // Beep logic for all timer modes
   React.useEffect(() => {
-    // Play beeps at 4 seconds remaining
-    if (currentTimer === 4 && !playedBeeps.has(4)) {
+    // Play beeps at 4 seconds remaining (only if not paused)
+    if (currentTimer === 4 && !playedBeeps.has(4) && !isPaused) {
       playTabataBeepSequence();
       setPlayedBeeps(prev => new Set(prev).add(4));
     }
-  }, [currentTimer, playedBeeps]);
+  }, [currentTimer, playedBeeps, isPaused]);
 
   const togglePlayPause = () => {
     const video = videoRef.current;
@@ -558,9 +575,17 @@ function TikTokVideoPlayer({
         currentAudioContext.current.close();
         currentAudioContext.current = null;
       }
+      // Pause background music
+      backgroundMusicRef?.current?.pauseMusic();
+      // Notify parent about pause state
+      onPauseChange?.(true);
     } else {
       video.play();
       setAnimationIcon('play');
+      // Resume background music
+      backgroundMusicRef?.current?.resumeMusic();
+      // Notify parent about resume state
+      onPauseChange?.(false);
     }
     
     // Show animation
@@ -747,6 +772,7 @@ export default function FitnessCalendarApp() {
           workout={selectedWorkout}
           onWorkoutComplete={handleWorkoutComplete}
           onClose={handleClosePlayer}
+          backgroundMusicRef={backgroundMusicRef}
         />
       ) : currentView === 'workout' ? (
         <WorkoutOfTheDay
