@@ -23,12 +23,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-  font-weight: 100; /* Thin weight for entire app */
-}
-
-/* Force thin font weight throughout the app */
-* {
-  font-weight: 100 !important;
+  font-weight: 400; /* Normal weight for body text */
 }
 
 /* Custom video progress bar styling */

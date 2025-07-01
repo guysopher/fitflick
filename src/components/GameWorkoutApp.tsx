@@ -55,7 +55,10 @@ interface TikTokVideoPlayerProps {
 type WorkoutPhase = 'get-ready' | 'workout' | 'rest';
 
 function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideoPlayerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const getReadyVideoRef = useRef<HTMLVideoElement>(null);
+  const workoutVideoRef = useRef<HTMLVideoElement>(null);
+  const restVideoRef = useRef<HTMLVideoElement>(null);
+  
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -63,6 +66,19 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
   const [workoutProgress, setWorkoutProgress] = useState(0);
   const [currentPhase, setCurrentPhase] = useState<WorkoutPhase>('get-ready');
   const [phaseTimer, setPhaseTimer] = useState(5); // 5 seconds for get ready, customizable for rest
+
+  // Get current video ref based on phase
+  const getCurrentVideoRef = () => {
+    switch (currentPhase) {
+      case 'get-ready':
+        return getReadyVideoRef;
+      case 'rest':
+        return restVideoRef;
+      case 'workout':
+      default:
+        return workoutVideoRef;
+    }
+  };
 
   // Get current video URL based on phase
   const getCurrentVideoUrl = () => {
@@ -103,8 +119,34 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
     }
   }, [currentPhase, onWorkoutComplete]);
 
+  // Simple effect to handle phase changes and video playback
   useEffect(() => {
-    const video = videoRef.current;
+    console.log('Phase changed to:', currentPhase);
+    
+    // Reset states when phase changes
+    setCurrentTime(0);
+    setDuration(0);
+    
+    // Handle video playback for each phase
+    const currentVideo = getCurrentVideoRef().current;
+    
+    if (currentPhase === 'workout') {
+      setWorkoutProgress(0);
+      setIsPlaying(false);
+    } else {
+      // For get-ready and rest phases, auto-play the video
+      if (currentVideo) {
+        currentVideo.play().then(() => {
+          setIsPlaying(true);
+        }).catch(error => {
+          console.log('Auto-play failed:', error);
+        });
+      }
+    }
+  }, [currentPhase]);
+
+  useEffect(() => {
+    const video = getCurrentVideoRef().current;
     if (!video) return;
 
     // Set video playback speed (only for workout phase)
@@ -130,26 +172,28 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
       }
     };
 
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+
     const handleLoadedData = () => {
       setDuration(video.duration);
-      // Auto-play for get-ready and rest phases
-      if (currentPhase === 'get-ready' || currentPhase === 'rest') {
-        video.play();
-        setIsPlaying(true);
-      }
     };
 
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('loadeddata', handleLoadedData);
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
 
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('loadeddata', handleLoadedData);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
     };
   }, [onWorkoutComplete, videoSpeed, currentPhase]);
 
   const togglePlay = () => {
-    const video = videoRef.current;
+    const video = getCurrentVideoRef().current;
     if (!video) return;
 
     if (isPlaying) {
@@ -161,7 +205,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
   };
 
   const toggleMute = () => {
-    const video = videoRef.current;
+    const video = getCurrentVideoRef().current;
     if (!video) return;
     
     video.muted = !video.muted;
@@ -169,7 +213,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
   };
 
   const restartVideo = () => {
-    const video = videoRef.current;
+    const video = getCurrentVideoRef().current;
     if (!video) return;
     
     video.currentTime = 0;
@@ -220,14 +264,36 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
 
   return (
     <div className="fixed inset-0 bg-black z-50">
-      {/* Video Background */}
+      {/* Get Ready Video */}
       <video
-        ref={videoRef}
-        src={getCurrentVideoUrl()}
-        className="w-full h-full object-cover"
+        ref={getReadyVideoRef}
+        src="/videos/Ready.mp4"
+        className={`w-full h-full object-cover ${currentPhase === 'get-ready' ? 'block' : 'hidden'}`}
         loop
         playsInline
-        onClick={currentPhase === 'workout' ? togglePlay : undefined}
+        autoPlay
+        muted
+      />
+
+      {/* Workout Video */}
+      <video
+        ref={workoutVideoRef}
+        src={exercise.videoUrl}
+        className={`w-full h-full object-cover ${currentPhase === 'workout' ? 'block' : 'hidden'}`}
+        loop
+        playsInline
+        onClick={togglePlay}
+      />
+
+      {/* Rest Video */}
+      <video
+        ref={restVideoRef}
+        src="/videos/Resting.mp4"
+        className={`w-full h-full object-cover ${currentPhase === 'rest' ? 'block' : 'hidden'}`}
+        loop
+        playsInline
+        autoPlay
+        muted
       />
 
       {/* Top Overlay - Exercise Info */}
@@ -322,6 +388,25 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose }: TikTokVideo
             <div className="text-white/80 text-sm">
               You earned +{coinsReward} coins
             </div>
+          </div>
+        )}
+
+        {/* Skip Button for Get Ready and Rest phases */}
+        {(currentPhase === 'get-ready' || currentPhase === 'rest') && (
+          <div className="text-center mt-4">
+            <button
+              onClick={() => {
+                if (currentPhase === 'get-ready') {
+                  setCurrentPhase('workout');
+                  setPhaseTimer(0);
+                } else if (currentPhase === 'rest') {
+                  onWorkoutComplete();
+                }
+              }}
+              className="bg-white/20 hover:bg-white/30 px-6 py-2 rounded-full text-white font-medium transition-colors"
+            >
+              Skip {currentPhase === 'get-ready' ? '→' : '✓'}
+            </button>
           </div>
         )}
       </div>
