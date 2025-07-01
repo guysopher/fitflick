@@ -244,6 +244,54 @@ function TikTokVideoPlayer({
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentTimer, setCurrentTimer] = useState(timer);
+  const [playedBeeps, setPlayedBeeps] = useState<Set<number>>(new Set());
+  const [showPlayPauseAnimation, setShowPlayPauseAnimation] = useState(false);
+  const [animationIcon, setAnimationIcon] = useState<'play' | 'pause'>('play');
+
+  // Function to play tabata beep sequence
+  const playTabataBeepSequence = () => {
+    try {
+      const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+      const makeBeep = (startTime: number, duration: number, frequency = 880, volume = 0.3) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+
+        oscillator.type = 'sine';
+        oscillator.frequency.value = frequency;
+
+        // Create a smooth volume envelope to avoid harsh clicks
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(volume, startTime + 0.01); // Quick fade in
+        gain.gain.setValueAtTime(volume, startTime + duration - 0.05); // Hold
+        gain.gain.linearRampToValueAtTime(0, startTime + duration); // Fade out
+
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      };
+
+      const now = context.currentTime;
+      const shortDuration = 0.15;
+      const longDuration = 0.8;
+      const gap = 1;
+
+      // Musical frequencies (C4, E4, G4 for the short beeps, C5 for final)
+      const frequencies = [261.63, 329.63, 392.00, 523.25]; // C-E-G-C chord
+
+      // 3 short ascending beeps with lower volume
+      for (let i = 0; i < 3; i++) {
+        makeBeep(now + i * gap, shortDuration, frequencies[i], 0.2);
+      }
+
+      // 1 final beep with slightly higher pitch and volume
+      makeBeep(now + 3 * gap, longDuration, frequencies[3], 0.25);
+    } catch (error) {
+      console.log('Audio context not available:', error);
+    }
+  };
 
   // Get video URL based on mode
   const getVideoUrl = () => {
@@ -297,6 +345,8 @@ function TikTokVideoPlayer({
   // Update timer when prop changes (for get-ready and rest modes)
   React.useEffect(() => {
     setCurrentTimer(timer);
+    // Reset played beeps when timer resets
+    setPlayedBeeps(new Set());
   }, [timer]);
 
   // Timer countdown for workout mode
@@ -315,6 +365,15 @@ function TikTokVideoPlayer({
     }
   }, [mode, isPlaying, currentTimer, onWorkoutComplete]);
 
+  // Beep logic for all timer modes
+  React.useEffect(() => {
+    // Play beeps at 4 seconds remaining
+    if (currentTimer === 4 && !playedBeeps.has(4)) {
+      playTabataBeepSequence();
+      setPlayedBeeps(prev => new Set(prev).add(4));
+    }
+  }, [currentTimer, playedBeeps]);
+
   const togglePlayPause = () => {
     const video = videoRef.current;
     if (!video) return;
@@ -322,9 +381,15 @@ function TikTokVideoPlayer({
     if (mode === 'workout') {
       if (isPlaying) {
         video.pause();
+        setAnimationIcon('pause');
       } else {
         video.play();
+        setAnimationIcon('play');
       }
+      
+      // Show animation
+      setShowPlayPauseAnimation(true);
+      setTimeout(() => setShowPlayPauseAnimation(false), 600);
     }
   };
 
@@ -354,8 +419,6 @@ function TikTokVideoPlayer({
     }
   };
 
-
-
   return (
     <div className="fixed inset-0 bg-black z-50">
       {/* Blurred Background Image */}
@@ -372,12 +435,12 @@ function TikTokVideoPlayer({
       <video
         ref={videoRef}
         src={getVideoUrl()}
-        className="relative w-full h-full object-contain z-10"
+        className="relative w-full h-full object-contain z-10 cursor-pointer"
         loop
         playsInline
         autoPlay
         muted
-        onClick={mode === 'workout' ? togglePlayPause : undefined}
+        onClick={togglePlayPause}
       />
 
       {/* Top Overlay - Title */}
@@ -405,13 +468,24 @@ function TikTokVideoPlayer({
         </div>
       </div>
 
-      {/* Play/Pause Indicator (only shown when paused and in workout mode) */}
-      {!isPlaying && mode === 'workout' && (
-        <div className="absolute inset-0 flex items-center justify-center z-30">
-          <div className="w-20 h-20 bg-white/90 rounded-full flex items-center justify-center">
-            <svg className="w-8 h-8 text-black ml-1" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M8 5v10l8-5z"/>
-            </svg>
+      {/* Animated Play/Pause Indicator */}
+      {showPlayPauseAnimation && (
+        <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+          <div 
+            className="flex items-center justify-center"
+            style={{
+              animation: showPlayPauseAnimation ? 'fadeGrow 0.6s ease-out' : 'none'
+            }}
+          >
+            {animationIcon === 'play' ? (
+              <svg className="w-16 h-16 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M8 5v10l8-5z"/>
+              </svg>
+            ) : (
+              <svg className="w-16 h-16 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M6 4h2v12H6V4zm6 0h2v12h-2V4z"/>
+              </svg>
+            )}
           </div>
         </div>
       )}
@@ -427,6 +501,24 @@ function TikTokVideoPlayer({
           </button>
         </div>
       )}
+
+      {/* CSS Animation Styles */}
+      <style jsx>{`
+        @keyframes fadeGrow {
+          0% {
+            opacity: 0;
+            transform: scale(0.5);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1.1);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(1);
+          }
+        }
+      `}</style>
     </div>
   );
 }
