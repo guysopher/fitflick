@@ -366,7 +366,6 @@ const BackgroundMusic = forwardRef<BackgroundMusicRef, BackgroundMusicProps>(({
             zIndex: 1000,
             boxShadow: '0 4px 15px rgba(255, 107, 107, 0.3)',
             transition: 'all 0.3s ease',
-            display: 'flex',
             alignItems: 'center',
             gap: '6px'
           }}
@@ -406,8 +405,7 @@ const BackgroundMusic = forwardRef<BackgroundMusicRef, BackgroundMusicProps>(({
         preload="auto"
         style={{ display: 'none' }}
       >
-        <source src="/audio/music1.mp3" type="audio/mp3" />
-        <source src="/audio/music (1).mp3" type="audio/mp3" />
+        <source src="/audio/Music2.mp3" type="audio/mp3" />
         Your browser does not support the audio element.
       </audio>
 
