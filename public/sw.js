@@ -1,5 +1,6 @@
-const STATIC_CACHE = 'static-v1';
-const DYNAMIC_CACHE = 'dynamic-v1';
+const STATIC_CACHE = 'fitflick-static-v2';
+const DYNAMIC_CACHE = 'fitflick-dynamic-v2';
+const MEDIA_CACHE = 'fitflick-media-v2';
 
 // Files to cache immediately
 const STATIC_FILES = [
@@ -7,9 +8,14 @@ const STATIC_FILES = [
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
-  '/_next/static/css/app/layout.css',
-  '/_next/static/chunks/webpack.js',
-  '/_next/static/chunks/main.js'
+  '/favicon.ico'
+];
+
+// Media files that should be cached for offline workouts
+const MEDIA_PATTERNS = [
+  /\/videos\/.+\.mp4$/,
+  /\/audio\/.+\.mp3$/,
+  /\/images\/.+\.(png|jpg|jpeg|gif|webp)$/
 ];
 
 // Install event - cache static files
@@ -32,7 +38,11 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter(cacheName => cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE)
+          .filter(cacheName => 
+            cacheName !== STATIC_CACHE && 
+            cacheName !== DYNAMIC_CACHE && 
+            cacheName !== MEDIA_CACHE
+          )
           .map(cacheName => caches.delete(cacheName))
       );
     }).then(() => self.clients.claim())
@@ -49,44 +59,63 @@ self.addEventListener('fetch', (event) => {
   // Skip external requests
   if (!request.url.startsWith(self.location.origin)) return;
 
-  event.respondWith(
-    caches.match(request)
-      .then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-
-        return fetch(request)
-          .then((response) => {
-            // Don't cache non-successful responses
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-
-            // Clone the response before caching
-            const responseToCache = response.clone();
-
-            // Cache dynamic content
-            caches.open(DYNAMIC_CACHE)
-              .then((cache) => {
-                cache.put(request, responseToCache);
-              });
-
-            return response;
-          })
-          .catch(() => {
-            // Return offline fallback for navigation requests
-            if (request.mode === 'navigate') {
-              return caches.match('/');
-            }
-            return new Response('Offline - Content not available', {
-              status: 503,
-              statusText: 'Service Unavailable'
-            });
-          });
-      })
-  );
+  // Check if it's a media file
+  const isMediaFile = MEDIA_PATTERNS.some(pattern => pattern.test(request.url));
+  
+  if (isMediaFile) {
+    // Cache-first strategy for media files (videos, audio, images)
+    event.respondWith(handleMediaRequest(request));
+  } else {
+    // Network-first strategy for other content
+    event.respondWith(handleRegularRequest(request));
+  }
 });
+
+// Handle media files with cache-first strategy
+async function handleMediaRequest(request) {
+  try {
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+
+    const response = await fetch(request);
+    if (response && response.status === 200) {
+      const cache = await caches.open(MEDIA_CACHE);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    console.log('Media file unavailable offline:', request.url);
+    return new Response('Media unavailable offline', { status: 503 });
+  }
+}
+
+// Handle regular requests with network-first strategy
+async function handleRegularRequest(request) {
+  try {
+    const response = await fetch(request);
+    
+    if (response && response.status === 200) {
+      const cache = await caches.open(DYNAMIC_CACHE);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    // Try to serve from cache
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+
+    // Return offline fallback for navigation requests
+    if (request.mode === 'navigate') {
+      return caches.match('/') || new Response('App unavailable offline', { status: 503 });
+    }
+    
+    return new Response('Content unavailable offline', { status: 503 });
+  }
+}
 
 // Background sync for saving workout progress
 self.addEventListener('sync', (event) => {

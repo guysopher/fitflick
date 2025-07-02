@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Test - Workout Fun</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#EC4899">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #A855F7 0%, #EC4899 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .test-section {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        .status {
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: inline-block;
+            margin: 5px 0;
+        }
+        .pass { background: #10B981; }
+        .fail { background: #EF4444; }
+        button {
+            background: white;
+            color: #A855F7;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+        }
+        button:hover {
+            background: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🐶 PWA Test - Workout Fun</h1>
+    
+    <div class="test-section">
+        <h3>📱 Service Worker Status</h3>
+        <div id="sw-status">Checking...</div>
+        <button onclick="testServiceWorker()">Test Service Worker</button>
+    </div>
+
+    <div class="test-section">
+        <h3>📋 Manifest Status</h3>
+        <div id="manifest-status">Checking...</div>
+        <button onclick="testManifest()">Test Manifest</button>
+    </div>
+
+    <div class="test-section">
+        <h3>🌐 Network Status</h3>
+        <div id="network-status">Checking...</div>
+        <button onclick="testOffline()">Test Offline Mode</button>
+    </div>
+
+    <div class="test-section">
+        <h3>💾 Storage Status</h3>
+        <div id="storage-status">Checking...</div>
+        <button onclick="testStorage()">Test Storage</button>
+    </div>
+
+    <div class="test-section">
+        <h3>🔔 Install Prompt</h3>
+        <div id="install-status">Waiting for prompt...</div>
+        <button id="install-btn" onclick="triggerInstall()" disabled>Install App</button>
+    </div>
+
+    <script>
+        let deferredPrompt;
+
+        // Test Service Worker
+        async function testServiceWorker() {
+            const statusEl = document.getElementById('sw-status');
+            
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registration = await navigator.serviceWorker.register('/sw.js');
+                    statusEl.innerHTML = '<span class="status pass">✅ Service Worker registered</span>';
+                    console.log('SW registered:', registration);
+                } catch (error) {
+                    statusEl.innerHTML = '<span class="status fail">❌ Service Worker failed</span>';
+                    console.error('SW registration failed:', error);
+                }
+            } else {
+                statusEl.innerHTML = '<span class="status fail">❌ Service Worker not supported</span>';
+            }
+        }
+
+        // Test Manifest
+        async function testManifest() {
+            const statusEl = document.getElementById('manifest-status');
+            
+            try {
+                const response = await fetch('/manifest.json');
+                const manifest = await response.json();
+                statusEl.innerHTML = `<span class="status pass">✅ Manifest loaded: ${manifest.name}</span>`;
+                console.log('Manifest:', manifest);
+            } catch (error) {
+                statusEl.innerHTML = '<span class="status fail">❌ Manifest failed to load</span>';
+                console.error('Manifest error:', error);
+            }
+        }
+
+        // Test Network Status
+        function testOffline() {
+            const statusEl = document.getElementById('network-status');
+            const online = navigator.onLine;
+            
+            statusEl.innerHTML = online 
+                ? '<span class="status pass">✅ Online</span>' 
+                : '<span class="status fail">📵 Offline</span>';
+            
+            // Listen for network changes
+            window.addEventListener('online', () => {
+                statusEl.innerHTML = '<span class="status pass">✅ Back Online</span>';
+            });
+            
+            window.addEventListener('offline', () => {
+                statusEl.innerHTML = '<span class="status fail">📵 Gone Offline</span>';
+            });
+        }
+
+        // Test Storage
+        async function testStorage() {
+            const statusEl = document.getElementById('storage-status');
+            
+            try {
+                // Test localStorage
+                localStorage.setItem('pwa-test', 'working');
+                const testValue = localStorage.getItem('pwa-test');
+                localStorage.removeItem('pwa-test');
+                
+                // Test storage estimate
+                if ('storage' in navigator && 'estimate' in navigator.storage) {
+                    const estimate = await navigator.storage.estimate();
+                    statusEl.innerHTML = `<span class="status pass">✅ Storage working (${Math.round(estimate.usage / 1024 / 1024)}MB used)</span>`;
+                } else {
+                    statusEl.innerHTML = '<span class="status pass">✅ Basic storage working</span>';
+                }
+            } catch (error) {
+                statusEl.innerHTML = '<span class="status fail">❌ Storage failed</span>';
+                console.error('Storage error:', error);
+            }
+        }
+
+        // Handle install prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('install-status').innerHTML = '<span class="status pass">✅ Install prompt available</span>';
+            document.getElementById('install-btn').disabled = false;
+        });
+
+        async function triggerInstall() {
+            if (!deferredPrompt) return;
+            
+            try {
+                await deferredPrompt.prompt();
+                const choiceResult = await deferredPrompt.userChoice;
+                
+                if (choiceResult.outcome === 'accepted') {
+                    document.getElementById('install-status').innerHTML = '<span class="status pass">✅ App installed!</span>';
+                } else {
+                    document.getElementById('install-status').innerHTML = '<span class="status fail">❌ Install dismissed</span>';
+                }
+                
+                deferredPrompt = null;
+                document.getElementById('install-btn').disabled = true;
+            } catch (error) {
+                console.error('Install error:', error);
+            }
+        }
+
+        // Run initial tests
+        window.addEventListener('load', () => {
+            testServiceWorker();
+            testManifest();
+            testOffline();
+            testStorage();
+        });
+    </script>
+</body>
+</html> 
