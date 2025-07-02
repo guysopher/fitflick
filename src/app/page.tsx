@@ -1,5 +1,10 @@
 import FitnessCalendarApp from '@/components/FitnessCalendarApp'
+import AuthWrapper from '@/components/AuthWrapper'
 
 export default function Home() {
-  return <FitnessCalendarApp />
+  return (
+    <AuthWrapper>
+      <FitnessCalendarApp />
+    </AuthWrapper>
+  )
 } 

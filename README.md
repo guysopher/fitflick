@@ -61,6 +61,10 @@
 
 ## 🎯 Getting Started
 
+### 🔐 Authentication Setup (Required)
+
+FitFlick now includes Google Authentication to personalize your fitness journey and save your progress.
+
 1. **Clone the Repository**
    ```bash
    git clone https://github.com/guysopher/fitflick.git
@@ -72,13 +76,49 @@
    npm install
    ```
 
-3. **Run the Development Server**
+3. **Set Up Google OAuth** (Required for login)
+   
+   Follow the detailed setup guide in [`GOOGLE_OAUTH_SETUP.md`](./GOOGLE_OAUTH_SETUP.md) or:
+   
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project and enable the Google+ API
+   - Create OAuth 2.0 credentials
+   - Add `http://localhost:3000/api/auth/callback/google` as an authorized redirect URI
+
+4. **Create Environment Variables**
+   
+   Create a `.env.local` file in the project root:
+   ```env
+   GOOGLE_CLIENT_ID=your_google_client_id
+   GOOGLE_CLIENT_SECRET=your_google_client_secret
+   NEXTAUTH_SECRET=your_generated_secret
+   NEXTAUTH_URL=http://localhost:3000
+   ```
+   
+   **Generate NextAuth Secret:**
+   ```bash
+   # Option 1: Using OpenSSL
+   openssl rand -base64 32
+   
+   # Option 2: Using our helper script
+   node generate-secret.js
+   ```
+
+5. **Run the Development Server**
    ```bash
    npm run dev
    ```
 
-4. **Open Your Browser**
-   Navigate to `http://localhost:3000` and start your fitness journey!
+6. **Open Your Browser**
+   Navigate to `http://localhost:3000` and sign in with Google to start your fitness journey!
+
+### 🔑 Authentication Features
+
+- **Google Sign-In**: Secure authentication with your Google account
+- **User Profile**: View your profile and manage settings
+- **Progress Saving**: Your workout progress is automatically saved to your account
+- **Personalized Experience**: Workouts and achievements are tied to your profile
+- **Secure Logout**: Easy and secure sign-out functionality
 
 ## 🎨 Design Philosophy
 

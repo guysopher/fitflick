@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@auth/core": "^0.40.0",
     "@elevenlabs/elevenlabs-js": "^2.4.1",
     "@pixiv/three-vrm": "^3.4.1",
     "@react-three/drei": "^10.3.0",
@@ -16,6 +17,7 @@
     "@types/three": "^0.177.0",
     "lucide-react": "^0.523.0",
     "next": "15.3.4",
+    "next-auth": "^5.0.0-beta.29",
     "openai": "^4.67.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
