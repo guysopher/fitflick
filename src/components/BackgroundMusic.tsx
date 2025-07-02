@@ -351,6 +351,7 @@ const BackgroundMusic = forwardRef<BackgroundMusicRef, BackgroundMusicProps>(({
         <button
           onClick={startMusic}
           style={{
+            display: 'none',
             position: 'fixed',
             top: '20px',
             right: '20px',

@@ -28,9 +28,10 @@ interface WorkoutPlayerProps {
   onWorkoutComplete: () => void;
   onClose: () => void;
   backgroundMusicRef?: React.RefObject<BackgroundMusicRef | null>;
+  preferences: { coachEnabled: boolean; musicEnabled: boolean };
 }
 
-function WorkoutPlayer({ workout, onWorkoutComplete, onClose, backgroundMusicRef }: WorkoutPlayerProps) {
+function WorkoutPlayer({ workout, onWorkoutComplete, onClose, backgroundMusicRef, preferences }: WorkoutPlayerProps) {
   // Workout sequence state
   const [workoutStep, setWorkoutStep] = useState(0); // Overall step counter
   const [isWorkoutActive, setIsWorkoutActive] = useState(false);
@@ -220,6 +221,8 @@ function WorkoutPlayer({ workout, onWorkoutComplete, onClose, backgroundMusicRef
       isPaused={isPaused}
       onPauseChange={setIsPaused}
       backgroundMusicRef={backgroundMusicRef}
+      nextExercise={nextExercise}
+      preferences={preferences}
     />
   );
 }
@@ -239,6 +242,8 @@ interface TikTokVideoPlayerProps {
   isPaused?: boolean;
   onPauseChange?: (paused: boolean) => void;
   backgroundMusicRef?: React.RefObject<BackgroundMusicRef | null>;
+  nextExercise?: Exercise | null; // Add next exercise for preloading
+  preferences: { coachEnabled: boolean; musicEnabled: boolean };
 }
 
 function TikTokVideoPlayer({ 
@@ -252,15 +257,18 @@ function TikTokVideoPlayer({
   totalExercises = 1,
   isPaused = false,
   onPauseChange,
-  backgroundMusicRef
+  backgroundMusicRef,
+  nextExercise = null,
+  preferences
 }: TikTokVideoPlayerProps) {
   const videoRef = React.useRef<HTMLVideoElement>(null);
+  const preloadVideoRef = React.useRef<HTMLVideoElement>(null); // For preloading next video
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentTimer, setCurrentTimer] = useState(timer);
   const [playedBeeps, setPlayedBeeps] = useState<Set<number>>(new Set());
   const [showPlayPauseAnimation, setShowPlayPauseAnimation] = useState(false);
   const [animationIcon, setAnimationIcon] = useState<'play' | 'pause'>('play');
-  const [voiceCoachEnabled] = useState(true);
+  const [voiceCoachEnabled] = useState(preferences.coachEnabled);
   const voiceCoach = React.useRef<FitnessVoiceCoach | null>(null);
   const currentAudioContext = React.useRef<AudioContext | null>(null);
   const pepTalkTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -331,6 +339,23 @@ function TikTokVideoPlayer({
     }
   };
 
+  // Get next video URL for preloading
+  const getNextVideoUrl = React.useCallback(() => {
+    switch (mode) {
+      case 'get-ready':
+        // During get-ready, preload the upcoming workout video
+        return exercise.videoUrl;
+      case 'workout':
+        // During workout, preload the rest video
+        return '/videos/Resting.mp4';
+      case 'rest':
+        // During rest, preload the next exercise video (if exists)
+        return nextExercise ? nextExercise.videoUrl : null;
+      default:
+        return null;
+    }
+  }, [mode, exercise.videoUrl, nextExercise?.videoUrl]);
+
   // Get video metadata for speed adjustment (only for workout mode)
   const videoMetadata = mode === 'workout' ? getVideoMetadata(exercise.videoUrl) : null;
   const videoSpeed = videoMetadata?.video_speed || 1.0;
@@ -366,72 +391,71 @@ function TikTokVideoPlayer({
 
   // Handle immediate voice coaching and pre-generation when mode changes
   React.useEffect(() => {
-    if (!voiceCoach.current || !voiceCoachEnabled) return;
-
     if (mode === 'get-ready') {
-      // Immediate: Play hard-coded get-ready message
-      const getReadyOptions: PepTalkOptions = {
-        exerciseName: exercise.name,
-        timeRemaining: currentTimer,
-        currentStep: currentExerciseIndex,
-        totalSteps: totalExercises,
-        userName: 'Shahar',
-        mode: 'get-ready'
-      };
-
-      // Play get-ready message immediately (hard-coded, no lag)
+      // Immediate: Play "Get Ready.mp3" audio file instead of generating voice
       const timeout = setTimeout(() => {
-        voiceCoach.current?.deliverImmediatePepTalk(getReadyOptions);
+        console.log('🎵 Playing Get Ready.mp3 audio file');
+        const getReadyAudio = new Audio('/audio/Get Ready.mp3');
+        getReadyAudio.volume = 0.8;
+        getReadyAudio.play().then(() => {
+          console.log('🎵 Get Ready audio started successfully');
+        }).catch(error => {
+          console.error('Failed to play Get Ready audio:', error);
+        });
       }, 500);
 
-      // Pre-generate: Instruction message for when workout starts
-      const instructionOptions: PepTalkOptions = {
-        exerciseName: exercise.name,
-        timeRemaining: 20,
-        currentStep: currentExerciseIndex,
-        totalSteps: totalExercises,
-        userName: 'Shahar',
-        mode: 'workout',
-        messageType: 'instruction'
-      };
+      // Pre-generate: Instruction message for when workout starts (only if voice coach is enabled)
+      if (voiceCoach.current && voiceCoachEnabled) {
+        const instructionOptions: PepTalkOptions = {
+          exerciseName: exercise.name,
+          timeRemaining: 20,
+          currentStep: currentExerciseIndex,
+          totalSteps: totalExercises,
+          userName: 'Shahar',
+          mode: 'workout',
+          messageType: 'instruction'
+        };
 
-      voiceCoach.current.preGenerateAudio(instructionOptions);
+        voiceCoach.current.preGenerateAudio(instructionOptions);
 
-      // Pre-generate: Motivation message for 10 seconds into workout
-      const motivationOptions: PepTalkOptions = {
-        exerciseName: exercise.name,
-        timeRemaining: 10,
-        currentStep: currentExerciseIndex,
-        totalSteps: totalExercises,
-        userName: 'Shahar',
-        mode: 'workout',
-        messageType: 'motivation'
-      };
+        // Pre-generate: Motivation message for 10 seconds into workout
+        const motivationOptions: PepTalkOptions = {
+          exerciseName: exercise.name,
+          timeRemaining: 10,
+          currentStep: currentExerciseIndex,
+          totalSteps: totalExercises,
+          userName: 'Shahar',
+          mode: 'workout',
+          messageType: 'motivation'
+        };
 
-      voiceCoach.current.preGenerateAudio(motivationOptions);
+        voiceCoach.current.preGenerateAudio(motivationOptions);
+      }
 
       return () => clearTimeout(timeout);
 
     } else if (mode === 'rest') {
-      // Immediate: Play rest announcement
-      const restOptions: PepTalkOptions = {
-        exerciseName: exercise.name,
-        timeRemaining: currentTimer,
-        currentStep: currentExerciseIndex,
-        totalSteps: totalExercises,
-        userName: 'Shahar',
-        mode: 'rest',
-        messageType: 'rest-announcement'
-      };
+      // Immediate: Play rest announcement (only if voice coach is enabled)
+      if (voiceCoach.current && voiceCoachEnabled) {
+        const restOptions: PepTalkOptions = {
+          exerciseName: exercise.name,
+          timeRemaining: currentTimer,
+          currentStep: currentExerciseIndex,
+          totalSteps: totalExercises,
+          userName: 'Shahar',
+          mode: 'rest',
+          messageType: 'rest-announcement'
+        };
 
-      const timeout = setTimeout(() => {
-        voiceCoach.current?.deliverImmediatePepTalk(restOptions);
-      }, 500);
+        const timeout = setTimeout(() => {
+          voiceCoach.current?.deliverImmediatePepTalk(restOptions);
+        }, 500);
 
-      return () => clearTimeout(timeout);
+        return () => clearTimeout(timeout);
+      }
     }
     // Note: For workout mode, voice coaching is handled by the 10-second timeout below
-  }, [mode, exercise.name]);
+  }, [mode, exercise.name, voiceCoachEnabled]);
 
   // Reset motivation flag when mode changes
   React.useEffect(() => {
@@ -529,6 +553,41 @@ function TikTokVideoPlayer({
     };
       }, [videoSpeed, mode]);
 
+  // Video preloading effect
+  React.useEffect(() => {
+    const preloadVideo = preloadVideoRef.current;
+    const nextVideoUrl = getNextVideoUrl();
+    
+    if (preloadVideo && nextVideoUrl && isPlaying) {
+      // Start preloading after a short delay to avoid interfering with current video load
+      const preloadTimeout = setTimeout(() => {
+        console.log(`🎬 Preloading next video: ${nextVideoUrl}`);
+        preloadVideo.src = nextVideoUrl;
+        preloadVideo.preload = 'auto';
+        preloadVideo.load();
+        
+        const handlePreloadSuccess = () => {
+          console.log(`✅ Successfully preloaded: ${nextVideoUrl}`);
+          preloadVideo.removeEventListener('loadeddata', handlePreloadSuccess);
+          preloadVideo.removeEventListener('error', handlePreloadError);
+        };
+        
+        const handlePreloadError = (error: Event) => {
+          console.warn(`⚠️ Failed to preload: ${nextVideoUrl}`, error);
+          preloadVideo.removeEventListener('loadeddata', handlePreloadSuccess);
+          preloadVideo.removeEventListener('error', handlePreloadError);
+        };
+        
+        preloadVideo.addEventListener('loadeddata', handlePreloadSuccess);
+        preloadVideo.addEventListener('error', handlePreloadError);
+      }, 2000); // 2 second delay
+      
+      return () => {
+        clearTimeout(preloadTimeout);
+      };
+    }
+  }, [isPlaying, getNextVideoUrl]);
+
   // Update timer when prop changes (for get-ready and rest modes)
   React.useEffect(() => {
     setCurrentTimer(timer);
@@ -575,15 +634,19 @@ function TikTokVideoPlayer({
         currentAudioContext.current.close();
         currentAudioContext.current = null;
       }
-      // Pause background music
-      backgroundMusicRef?.current?.pauseMusic();
+      // Pause background music (only if enabled)
+      if (preferences.musicEnabled) {
+        backgroundMusicRef?.current?.pauseMusic();
+      }
       // Notify parent about pause state
       onPauseChange?.(true);
     } else {
       video.play();
       setAnimationIcon('play');
-      // Resume background music
-      backgroundMusicRef?.current?.resumeMusic();
+      // Resume background music (only if enabled)
+      if (preferences.musicEnabled) {
+        backgroundMusicRef?.current?.resumeMusic();
+      }
       // Notify parent about resume state
       onPauseChange?.(false);
     }
@@ -641,6 +704,14 @@ function TikTokVideoPlayer({
         autoPlay
         muted
         onClick={togglePlayPause}
+      />
+
+      {/* Hidden Preload Video */}
+      <video
+        ref={preloadVideoRef}
+        className="hidden"
+        preload="auto"
+        muted
       />
 
       {/* Top Overlay - Title */}
@@ -720,24 +791,30 @@ type ViewMode = 'calendar' | 'workout' | 'player';
 export default function FitnessCalendarApp() {
   const [currentView, setCurrentView] = useState<ViewMode>('calendar');
   const [selectedWorkout, setSelectedWorkout] = useState<typeof beginnerToAdvancedWorkout | null>(null);
+  const [workoutPreferences, setWorkoutPreferences] = useState<{ coachEnabled: boolean; musicEnabled: boolean }>({ coachEnabled: true, musicEnabled: true });
   const backgroundMusicRef = useRef<BackgroundMusicRef>(null);
 
   const handleWorkoutSelect = () => {
     setCurrentView('workout');
   };
 
-  const handleWorkoutStart = async (workout: typeof beginnerToAdvancedWorkout) => {
-    console.log('🎵 Starting workout and music from main play button');
+  const handleWorkoutStart = async (workout: typeof beginnerToAdvancedWorkout, preferences: { coachEnabled: boolean; musicEnabled: boolean }) => {
+    console.log('🎵 Starting workout with preferences:', preferences);
     
-    // Start the music first, using the same user interaction
-    try {
-      await backgroundMusicRef.current?.startMusic();
-      console.log('🎵 Music started successfully with workout');
-    } catch (error) {
-      console.error('🎵 Failed to start music with workout:', error);
+    // Start the music only if enabled, using the same user interaction
+    if (preferences.musicEnabled) {
+      try {
+        await backgroundMusicRef.current?.startMusic();
+        console.log('🎵 Music started successfully with workout');
+      } catch (error) {
+        console.error('🎵 Failed to start music with workout:', error);
+      }
+    } else {
+      console.log('🎵 Music disabled by user preference');
     }
     
-    // Then start the workout
+    // Store preferences and workout separately
+    setWorkoutPreferences(preferences);
     setSelectedWorkout(workout);
     setCurrentView('player');
   };
@@ -773,6 +850,7 @@ export default function FitnessCalendarApp() {
           onWorkoutComplete={handleWorkoutComplete}
           onClose={handleClosePlayer}
           backgroundMusicRef={backgroundMusicRef}
+          preferences={workoutPreferences}
         />
       ) : currentView === 'workout' ? (
         <WorkoutOfTheDay

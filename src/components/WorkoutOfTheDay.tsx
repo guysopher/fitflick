@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Play, ArrowLeft, Clock, Target, Zap } from 'lucide-react';
+import { Play, ArrowLeft, Clock, Target, Zap, Mic, Music, MicOff, VolumeX } from 'lucide-react';
 import { beginnerToAdvancedWorkout } from '@/data/exercises';
 
 interface WorkoutOfTheDayProps {
-  onWorkoutStart: (workout: typeof beginnerToAdvancedWorkout) => void;
+  onWorkoutStart: (workout: typeof beginnerToAdvancedWorkout, preferences: { coachEnabled: boolean; musicEnabled: boolean }) => void;
   onBack: () => void;
 }
 
@@ -17,6 +17,8 @@ interface CompletedWorkout {
 
 const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBack }) => {
   const [completedWorkouts, setCompletedWorkouts] = useState<CompletedWorkout[]>([]);
+  const [coachEnabled, setCoachEnabled] = useState(true);
+  const [musicEnabled, setMusicEnabled] = useState(true);
 
   // Load completed workouts from localStorage
   useEffect(() => {
@@ -33,7 +35,7 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
   );
 
   const handleStartWorkout = () => {
-    onWorkoutStart(beginnerToAdvancedWorkout);
+    onWorkoutStart(beginnerToAdvancedWorkout, { coachEnabled, musicEnabled });
   };
 
   // Calculate total workout duration
@@ -165,8 +167,53 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
               <Play className="w-12 h-12 text-white ml-1 group-hover:scale-110 transition-transform" />
             </button>
           </div>
+
+          {/* Workout Toggles */}
+          <div className="flex items-center justify-center gap-6 mt-6">
+            {/* Coach Toggle */}
+            <div className="flex flex-col items-center">
+              <button
+                onClick={() => setCoachEnabled(!coachEnabled)}
+                className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  coachEnabled 
+                    ? 'bg-green-500 shadow-lg hover:bg-green-600 hover:shadow-xl' 
+                    : 'bg-gray-300 hover:bg-gray-400'
+                }`}
+              >
+                {coachEnabled ? (
+                  <Mic className="w-8 h-8 text-white" />
+                ) : (
+                  <MicOff className="w-8 h-8 text-gray-600" />
+                )}
+              </button>
+              <span className={`text-sm mt-2 font-medium ${coachEnabled ? 'text-green-600' : 'text-gray-500'}`}>
+                Coach
+              </span>
+            </div>
+
+            {/* Music Toggle */}
+            <div className="flex flex-col items-center">
+              <button
+                onClick={() => setMusicEnabled(!musicEnabled)}
+                className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  musicEnabled 
+                    ? 'bg-blue-500 shadow-lg hover:bg-blue-600 hover:shadow-xl' 
+                    : 'bg-gray-300 hover:bg-gray-400'
+                }`}
+              >
+                {musicEnabled ? (
+                  <Music className="w-8 h-8 text-white" />
+                ) : (
+                  <VolumeX className="w-8 h-8 text-gray-600" />
+                )}
+              </button>
+              <span className={`text-sm mt-2 font-medium ${musicEnabled ? 'text-blue-600' : 'text-gray-500'}`}>
+                Music
+              </span>
+            </div>
+          </div>
           
-          <p className="text-gray-600 text-center mt-4 max-w-xs">
+          <p className="text-gray-600 text-center mt-6 max-w-xs">
             {isCompletedToday 
               ? "Great job! You can always do it again to improve your form."
               : "Tap the play button to start your workout and earn today's checkmark!"

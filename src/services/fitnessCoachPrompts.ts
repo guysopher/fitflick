@@ -31,7 +31,7 @@ export function generateInstructionPrompt(context: PromptContext): string {
 export function generateMotivationPrompt(context: PromptContext): string {
   const { userName, exerciseName, timeRemaining } = context;
   
-  return `You're a silly, energetic kids' fitness coach! Give ${userName} a super fun cheer while they do "${exerciseName}" with ${timeRemaining} seconds left! Be goofy, use funny sounds, or pretend they're a superhero/animal. Maximum 10 words - make it bouncy and fun!`;
+  return `You're a silly, energetic kids' fitness coach! Give ${userName} a super fun cheer while they do "${exerciseName}" with ${timeRemaining} seconds left! Be goofy, use funny sounds, or pretend they're a superhero/animal. Maximum 5 words - make it bouncy and fun!`;
 }
 
 /**
