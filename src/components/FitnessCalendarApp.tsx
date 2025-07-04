@@ -389,73 +389,39 @@ function TikTokVideoPlayer({
     }
   }, [voiceCoachEnabled]);
 
-  // Handle immediate voice coaching and pre-generation when mode changes
+  // NEW: Initialize voice schedule when mode changes
   React.useEffect(() => {
-    if (mode === 'get-ready') {
-      // Immediate: Play "Get Ready.mp3" audio file instead of generating voice
-      const timeout = setTimeout(() => {
-        console.log('🎵 Playing Get Ready.mp3 audio file');
-        const getReadyAudio = new Audio('/audio/Get Ready.mp3');
-        getReadyAudio.volume = 0.8;
-        getReadyAudio.play().then(() => {
-          console.log('🎵 Get Ready audio started successfully');
-        }).catch(error => {
-          console.error('Failed to play Get Ready audio:', error);
-        });
-      }, 500);
+    if (voiceCoach.current && voiceCoachEnabled) {
+      console.log(`🎤 Setting up voice schedule for ${mode} mode`);
+      
+      voiceCoach.current.initializeVoiceSchedule({
+        mode,
+        totalSeconds: timer,
+        exerciseName: exercise.name,
+        currentStep: currentExerciseIndex,
+        totalSteps: totalExercises,
+        nextExerciseName: nextExercise?.name
+      });
+    }
+  }, [mode, exercise.name, voiceCoachEnabled, timer, currentExerciseIndex, totalExercises, nextExercise?.name]);
 
-      // Pre-generate: Instruction message for when workout starts (only if voice coach is enabled)
-      if (voiceCoach.current && voiceCoachEnabled) {
-        const instructionOptions: PepTalkOptions = {
-          exerciseName: exercise.name,
-          timeRemaining: 20,
-          currentStep: currentExerciseIndex,
-          totalSteps: totalExercises,
-          userName: 'Shahar',
-          mode: 'workout',
-          messageType: 'instruction'
-        };
-
-        voiceCoach.current.preGenerateAudio(instructionOptions);
-
-        // Pre-generate: Motivation message for 10 seconds into workout
-        const motivationOptions: PepTalkOptions = {
-          exerciseName: exercise.name,
-          timeRemaining: 10,
-          currentStep: currentExerciseIndex,
-          totalSteps: totalExercises,
-          userName: 'Shahar',
-          mode: 'workout',
-          messageType: 'motivation'
-        };
-
-        voiceCoach.current.preGenerateAudio(motivationOptions);
-      }
-
-      return () => clearTimeout(timeout);
-
-    } else if (mode === 'rest') {
-      // Immediate: Play rest announcement (only if voice coach is enabled)
-      if (voiceCoach.current && voiceCoachEnabled) {
-        const restOptions: PepTalkOptions = {
-          exerciseName: exercise.name,
-          timeRemaining: currentTimer,
-          currentStep: currentExerciseIndex,
-          totalSteps: totalExercises,
-          userName: 'Shahar',
-          mode: 'rest',
-          messageType: 'rest-announcement'
-        };
-
-        const timeout = setTimeout(() => {
-          voiceCoach.current?.deliverImmediatePepTalk(restOptions);
-        }, 500);
-
-        return () => clearTimeout(timeout);
+  // Handle pause/resume of voice schedule
+  React.useEffect(() => {
+    if (voiceCoach.current) {
+      if (isPaused) {
+        voiceCoach.current.pauseVoiceSchedule();
+      } else {
+        voiceCoach.current.resumeVoiceSchedule();
       }
     }
-    // Note: For workout mode, voice coaching is handled by the 10-second timeout below
-  }, [mode, exercise.name, voiceCoachEnabled]);
+  }, [isPaused]);
+
+  // Sync voice coach timer with actual timer
+  React.useEffect(() => {
+    if (voiceCoach.current) {
+      voiceCoach.current.updateRemainingTime(currentTimer);
+    }
+  }, [currentTimer]);
 
   // Reset motivation flag when mode changes
   React.useEffect(() => {
@@ -467,59 +433,6 @@ function TikTokVideoPlayer({
       pepTalkTimeoutRef.current = null;
     }
   }, [mode, exercise.name]);
-
-  // Handle workout phase voice coaching
-  React.useEffect(() => {
-    if (mode === 'workout' && isPlaying && !isPaused && voiceCoachEnabled && voiceCoach.current) {
-      
-      // Immediate: Play instruction message (should be pre-generated)
-      const instructionOptions: PepTalkOptions = {
-        exerciseName: exercise.name,
-        timeRemaining: 20,
-        currentStep: currentExerciseIndex,
-        totalSteps: totalExercises,
-        userName: 'Shahar',
-        mode: 'workout',
-        messageType: 'instruction'
-      };
-
-      // Play instruction immediately
-      setTimeout(() => {
-        voiceCoach.current?.deliverImmediatePepTalk(instructionOptions);
-      }, 500);
-
-      // Schedule motivation pep talk for 10 seconds into the workout (should be pre-generated)
-      if (!hasDeliveredMotivation.current) {
-        pepTalkTimeoutRef.current = setTimeout(() => {
-          if (voiceCoach.current && voiceCoachEnabled && !hasDeliveredMotivation.current && !isPaused) {
-            const motivationOptions: PepTalkOptions = {
-              exerciseName: exercise.name,
-              timeRemaining: currentTimer,
-              currentStep: currentExerciseIndex,
-              totalSteps: totalExercises,
-              userName: 'Shahar',
-              mode: 'workout',
-              messageType: 'motivation'
-            };
-            voiceCoach.current.deliverImmediatePepTalk(motivationOptions);
-            hasDeliveredMotivation.current = true;
-          }
-        }, 10000); // 10 seconds delay
-
-        return () => {
-          if (pepTalkTimeoutRef.current) {
-            clearTimeout(pepTalkTimeoutRef.current);
-          }
-        };
-      }
-    }
-    
-    // Clear pending voice coaching if paused
-    if (isPaused && pepTalkTimeoutRef.current) {
-      clearTimeout(pepTalkTimeoutRef.current);
-      pepTalkTimeoutRef.current = null;
-    }
-  }, [mode, isPlaying, isPaused, voiceCoachEnabled]);
 
   React.useEffect(() => {
     const video = videoRef.current;
@@ -763,7 +676,22 @@ function TikTokVideoPlayer({
         </div>
       )}
 
-
+      {/* Debug Voice Schedule Panel (only in development) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed top-4 right-4 z-50 bg-black/80 text-white p-4 rounded-lg max-w-sm">
+          <h3 className="font-bold mb-2">🎤 Voice Schedule Debug</h3>
+          <div className="text-sm space-y-1">
+            <div>Mode: {mode}</div>
+            <div>Timer: {currentTimer}s</div>
+            <div>Exercise: {exercise.name}</div>
+            <div>Coach Enabled: {voiceCoachEnabled ? '✅' : '❌'}</div>
+            <div>Paused: {isPaused ? '⏸️' : '▶️'}</div>
+            <div className="text-xs opacity-75 mt-2">
+              Voice system will trigger at specific remaining times and cache upcoming voices for seamless playback.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CSS Animation Styles */}
       <style jsx>{`

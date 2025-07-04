@@ -87,8 +87,6 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose, backgroundMus
     }
   }, [currentPhase]);
 
-
-
   // Get video metadata for speed adjustment
   const videoMetadata = getVideoMetadata(exercise.videoUrl);
   const videoSpeed = videoMetadata?.video_speed || 1.0;
@@ -102,6 +100,45 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose, backgroundMus
       voiceCoachRef.current?.stopSpeaking();
     };
   }, []);
+
+  // NEW: Initialize voice schedule when phase changes
+  useEffect(() => {
+    if (voiceCoachRef.current) {
+      console.log(`🎤 Setting up voice schedule for ${currentPhase} phase`);
+      
+      // Calculate timer based on phase
+      const totalSeconds = currentPhase === 'get-ready' ? 5 : 
+                          currentPhase === 'rest' ? 10 : 
+                          20; // workout duration
+      
+      voiceCoachRef.current.initializeVoiceSchedule({
+        mode: currentPhase,
+        totalSeconds,
+        exerciseName: exercise.name,
+        currentStep: 0,
+        totalSteps: 1,
+        nextExerciseName: undefined
+      });
+    }
+  }, [currentPhase, exercise.name]);
+
+  // Handle pause/resume of voice schedule
+  useEffect(() => {
+    if (voiceCoachRef.current) {
+      if (isPausedByUser) {
+        voiceCoachRef.current.pauseVoiceSchedule();
+      } else {
+        voiceCoachRef.current.resumeVoiceSchedule();
+      }
+    }
+  }, [isPausedByUser]);
+
+  // Sync voice coach timer with phase timer
+  useEffect(() => {
+    if (voiceCoachRef.current) {
+      voiceCoachRef.current.updateRemainingTime(phaseTimer);
+    }
+  }, [phaseTimer]);
 
   // Timer effect for get-ready and rest phases
   useEffect(() => {

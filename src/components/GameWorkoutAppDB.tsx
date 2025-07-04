@@ -7,6 +7,7 @@ import { useUserData } from '@/hooks/useUserData';
 import { useSession } from 'next-auth/react';
 import BackgroundMusic, { BackgroundMusicRef } from './BackgroundMusic';
 import WorkoutSuccess from './WorkoutSuccess';
+import { FitnessVoiceCoach } from '@/services/fitnessVoiceCoach';
 
 const jokes = [
   "Why don't hamsters ever get lost? Because they always know which wheel to turn! 🐹",
@@ -42,6 +43,8 @@ type WorkoutPhase = 'get-ready' | 'workout' | 'rest';
 
 function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose, backgroundMusicRef }: TikTokVideoPlayerProps) {
   const workoutVideoRef = useRef<HTMLVideoElement>(null);
+  const voiceCoachRef = useRef<FitnessVoiceCoach | null>(null);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -52,6 +55,47 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose, backgroundMus
 
   const [completedAt, setCompletedAt] = useState<Date | null>(null);
   const [actualDuration, setActualDuration] = useState(0);
+
+  // Initialize voice coach
+  useEffect(() => {
+    voiceCoachRef.current = FitnessVoiceCoach.getInstance();
+    
+    // Cleanup: stop voice coach when component unmounts
+    return () => {
+      voiceCoachRef.current?.stopSpeaking();
+    };
+  }, []);
+
+  // NEW: Initialize voice schedule when phase changes
+  useEffect(() => {
+    if (voiceCoachRef.current) {
+      console.log(`🎤 Setting up voice schedule for ${currentPhase} phase`);
+      
+      // Calculate timer based on phase
+      const totalSeconds = currentPhase === 'get-ready' ? 5 : 
+                          currentPhase === 'workout' ? Math.floor(duration) || 20 : 
+                          10; // rest duration
+      
+      voiceCoachRef.current.initializeVoiceSchedule({
+        mode: currentPhase,
+        totalSeconds,
+        exerciseName: exercise.name,
+        currentStep: 0,
+        totalSteps: 1,
+        nextExerciseName: undefined
+      });
+    }
+  }, [currentPhase, exercise.name, duration]);
+
+  // Sync voice coach timer with phase timer and current time
+  useEffect(() => {
+    if (voiceCoachRef.current) {
+      const remainingTime = currentPhase === 'get-ready' ? phaseTimer :
+                           currentPhase === 'workout' ? Math.floor(duration - currentTime) :
+                           10; // rest time
+      voiceCoachRef.current.updateRemainingTime(remainingTime);
+    }
+  }, [phaseTimer, currentTime, duration, currentPhase]);
 
   // Timer effect for get-ready phase
   useEffect(() => {
