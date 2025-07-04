@@ -287,7 +287,7 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">What&apos;s Included</h3>
           <div className="space-y-3 max-h-64 overflow-y-auto">
-            {todaysWorkout.exercises.slice(0, 5).map((exercise, index) => (
+            {todaysWorkout.exercises.map((exercise, index) => (
               <div key={exercise.id} className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
                   {index + 1}
