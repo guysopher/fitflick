@@ -6,6 +6,7 @@ import { exercises, Exercise } from '@/data/exercises';
 import { useUserData } from '@/hooks/useUserData';
 import { useSession } from 'next-auth/react';
 import BackgroundMusic, { BackgroundMusicRef } from './BackgroundMusic';
+import WorkoutSuccess from './WorkoutSuccess';
 
 const jokes = [
   "Why don't hamsters ever get lost? Because they always know which wheel to turn! 🐹",
@@ -403,60 +404,19 @@ export default function GameWorkoutAppDB() {
   // Completion screen
   if (currentScreen === 'complete' && selectedExercise && completionData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-400 via-blue-500 to-purple-600 p-4 flex items-center justify-center">
-        <div className="max-w-md mx-auto text-center text-white">
-          <div className="mb-8">
-            <Trophy className="w-24 h-24 mx-auto mb-4 text-yellow-300" />
-            <h1 className="text-4xl font-bold mb-2">Awesome! 🎉</h1>
-            <p className="text-xl mb-4">You crushed {selectedExercise.name}!</p>
-          </div>
-
-          {/* Stats */}
-          <div className="bg-white/10 backdrop-blur rounded-xl p-6 mb-6">
-            <div className="grid grid-cols-2 gap-4 text-center">
-              <div>
-                <p className="text-2xl font-bold text-yellow-300">+{completionData.coinsEarned}</p>
-                <p className="text-sm opacity-80">Coins Earned</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-green-300">{completionData.caloriesBurned}</p>
-                <p className="text-sm opacity-80">Calories Burned</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Joke */}
-          {showJoke && (
-            <div className="bg-white/10 backdrop-blur rounded-xl p-4 mb-6">
-              <h3 className="font-bold mb-2">Pip says:</h3>
-              <p className="text-sm">{todayJoke}</p>
-            </div>
-          )}
-
-          {/* Action buttons */}
-          <div className="space-y-3">
-            <button
-              onClick={shareWorkout}
-              className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2"
-            >
-              <Share className="w-5 h-5" />
-              Share on WhatsApp
-            </button>
-            
-            <button
-              onClick={() => {
-                setCurrentScreen('home');
-                setSelectedExercise(null);
-                setCompletionData(null);
-                setShowJoke(false);
-              }}
-              className="w-full bg-white/20 hover:bg-white/30 text-white font-bold py-3 rounded-xl"
-            >
-              Back to Home
-            </button>
-          </div>
-        </div>
-      </div>
+      <WorkoutSuccess
+        exercise={selectedExercise}
+        completionData={completionData}
+        userProgress={userProgress || undefined}
+        todayJoke={showJoke ? todayJoke : undefined}
+        onClose={() => {
+          setCurrentScreen('home');
+          setSelectedExercise(null);
+          setCompletionData(null);
+          setShowJoke(false);
+        }}
+        onShare={shareWorkout}
+      />
     );
   }
 

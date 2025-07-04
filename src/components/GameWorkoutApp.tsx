@@ -6,6 +6,7 @@ import { exercises, Exercise } from '@/data/exercises';
 import { videos } from '@/data/videos';
 import { FitnessVoiceCoach } from '@/services/fitnessVoiceCoach';
 import BackgroundMusic, { BackgroundMusicRef } from './BackgroundMusic';
+import WorkoutSuccess from './WorkoutSuccess';
 
 interface UserProgress {
   level: number;
@@ -794,53 +795,26 @@ export default function GameWorkoutApp() {
   }
 
   // Workout Complete Screen
-  if (currentScreen === 'complete') {
+  if (currentScreen === 'complete' && selectedExercise) {
+    const completionData = {
+      coinsEarned: calculateCoinsReward(selectedExercise.difficulty, selectedExercise.duration),
+      caloriesBurned: Math.floor(parseInt(selectedExercise.duration) * 0.15) || 50,
+      actualDuration: parseInt(selectedExercise.duration) || 30,
+    };
+
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-400 via-blue-400 to-purple-500 flex flex-col items-center justify-center p-4">
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 text-center max-w-sm w-full">
-          <div className="text-6xl mb-4">🎉</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Amazing Job!</h2>
-          <p className="text-gray-600 mb-4">
-            You completed {selectedExercise?.name} and earned {calculateCoinsReward(selectedExercise?.difficulty || '', selectedExercise?.duration || '')} coins!
-          </p>
-          
-          {/* Rewards */}
-          <div className="bg-yellow-100 rounded-2xl p-4 mb-4">
-            <div className="text-3xl mb-2">🏆</div>
-            <p className="text-yellow-700 font-semibold">+{calculateCoinsReward(selectedExercise?.difficulty || '', selectedExercise?.duration || '')} Coins</p>
-            <p className="text-yellow-600 text-sm">Streak: {userProgress.streak} days! 🔥</p>
-          </div>
-
-          {/* Daily Joke */}
-          {showJoke && (
-            <div className="bg-pink-100 rounded-2xl p-4 mb-6">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xl">🐹</span>
-                <span className="font-bold text-pink-700">Hammy&apos;s Daily Joke</span>
-              </div>
-              <p className="text-pink-600 text-sm">{todayJoke}</p>
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="space-y-3">
-            <button
-              onClick={shareWorkout}
-              className="w-full bg-green-500 text-white py-3 px-6 rounded-xl font-semibold flex items-center justify-center gap-2"
-            >
-              <Share className="w-5 h-5" />
-              Share on WhatsApp
-            </button>
-            
-            <button
-              onClick={() => setCurrentScreen('home')}
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 px-6 rounded-xl font-semibold"
-            >
-              Back to Home
-            </button>
-          </div>
-        </div>
-      </div>
+      <WorkoutSuccess
+        exercise={selectedExercise}
+        completionData={completionData}
+        userProgress={userProgress}
+        todayJoke={showJoke ? todayJoke : undefined}
+        onClose={() => {
+          setCurrentScreen('home');
+          setSelectedExercise(null);
+          setShowJoke(false);
+        }}
+        onShare={shareWorkout}
+      />
     );
   }
 
