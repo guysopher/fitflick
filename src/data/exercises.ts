@@ -386,7 +386,7 @@ const createTabataRounds = (exercises: Exercise[]): TabataRound[] => {
 
 export const beginnerToAdvancedWorkout: Workout = {
   id: 1,
-  name: 'Shahar\'s Tabata Full-Body Progression',
+  name: 'Tabata Full-Body Progression',
   exercises,
   tabataStructure: createTabataRounds(exercises),
   workDuration: '20 seconds',

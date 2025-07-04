@@ -5,6 +5,7 @@ import CalendarView from './CalendarView';
 import WorkoutOfTheDay from './WorkoutOfTheDay';
 import BackgroundMusic, { BackgroundMusicRef } from './BackgroundMusic';
 import { beginnerToAdvancedWorkout, Exercise } from '@/data/exercises';
+import { CustomWorkout } from '@/data/workouts';
 import { FitnessVoiceCoach, PepTalkOptions } from '@/services/fitnessVoiceCoach';
 
 // Import the TikTokVideoPlayer from GameWorkoutApp
@@ -24,7 +25,7 @@ const getVideoMetadata = (videoFileName: string) => {
 
 // Workout Player Component (extracted from GameWorkoutApp)
 interface WorkoutPlayerProps {
-  workout: typeof beginnerToAdvancedWorkout;
+  workout: CustomWorkout;
   onWorkoutComplete: () => void;
   onClose: () => void;
   backgroundMusicRef?: React.RefObject<BackgroundMusicRef | null>;
@@ -718,7 +719,7 @@ type ViewMode = 'calendar' | 'workout' | 'player';
 
 export default function FitnessCalendarApp() {
   const [currentView, setCurrentView] = useState<ViewMode>('calendar');
-  const [selectedWorkout, setSelectedWorkout] = useState<typeof beginnerToAdvancedWorkout | null>(null);
+  const [selectedWorkout, setSelectedWorkout] = useState<CustomWorkout | null>(null);
   const [workoutPreferences, setWorkoutPreferences] = useState<{ coachEnabled: boolean; musicEnabled: boolean }>({ coachEnabled: true, musicEnabled: true });
   const backgroundMusicRef = useRef<BackgroundMusicRef>(null);
 
@@ -726,7 +727,7 @@ export default function FitnessCalendarApp() {
     setCurrentView('workout');
   };
 
-  const handleWorkoutStart = async (workout: typeof beginnerToAdvancedWorkout, preferences: { coachEnabled: boolean; musicEnabled: boolean }) => {
+  const handleWorkoutStart = async (workout: CustomWorkout, preferences: { coachEnabled: boolean; musicEnabled: boolean }) => {
     console.log('🎵 Starting workout with preferences:', preferences);
     
     // Start the music only if enabled, using the same user interaction

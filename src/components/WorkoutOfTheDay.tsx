@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { Play, ArrowLeft, Clock, Target, Zap, Mic, Music, MicOff, VolumeX } from 'lucide-react';
-import { beginnerToAdvancedWorkout } from '@/data/exercises';
+import { getTodaysWorkout, getWorkoutForDate, CustomWorkout } from '@/data/workouts';
 
 interface WorkoutOfTheDayProps {
-  onWorkoutStart: (workout: typeof beginnerToAdvancedWorkout, preferences: { coachEnabled: boolean; musicEnabled: boolean }) => void;
+  onWorkoutStart: (workout: CustomWorkout, preferences: { coachEnabled: boolean; musicEnabled: boolean }) => void;
   onBack: () => void;
 }
 
@@ -19,13 +19,18 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
   const [completedWorkouts, setCompletedWorkouts] = useState<CompletedWorkout[]>([]);
   const [coachEnabled, setCoachEnabled] = useState(true);
   const [musicEnabled, setMusicEnabled] = useState(true);
+  const [todaysWorkout, setTodaysWorkout] = useState<CustomWorkout | null>(null);
 
-  // Load completed workouts from localStorage
+  // Load completed workouts from localStorage and get today's workout
   useEffect(() => {
     const saved = localStorage.getItem('completedWorkouts');
     if (saved) {
       setCompletedWorkouts(JSON.parse(saved));
     }
+    
+    // Get today's workout
+    const workout = getTodaysWorkout();
+    setTodaysWorkout(workout);
   }, []);
 
   const today = new Date();
@@ -35,14 +40,65 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
   );
 
   const handleStartWorkout = () => {
-    onWorkoutStart(beginnerToAdvancedWorkout, { coachEnabled, musicEnabled });
+    if (todaysWorkout) {
+      onWorkoutStart(todaysWorkout, { coachEnabled, musicEnabled });
+    }
   };
 
-  // Calculate total workout duration
-  const totalDuration = beginnerToAdvancedWorkout.exercises.reduce((total, exercise) => {
-    const duration = parseInt(exercise.duration.split(' ')[0]) || 30;
+  // If no workout today (rest day), show rest day message
+  if (!todaysWorkout) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <div className="container mx-auto max-w-md p-4">
+          {/* Header */}
+          <div className="flex items-center mb-8">
+            <button
+              onClick={onBack}
+              className="p-2 rounded-full hover:bg-white/50 transition-colors mr-3"
+            >
+              <ArrowLeft className="w-6 h-6 text-gray-600" />
+            </button>
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Workout of the Day
+              </h1>
+              <p className="text-gray-600 text-sm">
+                {today.toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </p>
+            </div>
+          </div>
+
+          {/* Rest Day Message */}
+          <div className="text-center py-16">
+            <div className="text-8xl mb-6">🛌</div>
+            <h2 className="text-3xl font-bold text-gray-800 mb-4">Rest Day</h2>
+            <p className="text-gray-600 text-lg mb-8">
+              Take a well-deserved break! Your body needs time to recover and grow stronger.
+            </p>
+            <div className="bg-blue-50 rounded-2xl p-6 mx-4">
+              <h3 className="text-lg font-semibold text-blue-800 mb-2">💡 Rest Day Tips</h3>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>• Stay hydrated</li>
+                <li>• Get good sleep</li>
+                <li>• Light stretching is okay</li>
+                <li>• Come back tomorrow stronger!</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate total workout duration in seconds
+  const totalDuration = todaysWorkout.exercises.reduce((total, exercise) => {
+    const duration = parseInt(exercise.duration.split(' ')[0]) || 20;
     return total + duration;
-  }, 0);
+  }, 0) * todaysWorkout.structure.rounds;
 
   const formatDuration = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -52,7 +108,7 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
 
   const getDifficultyDistribution = () => {
     const distribution = { Beginner: 0, Intermediate: 0, Advanced: 0 };
-    beginnerToAdvancedWorkout.exercises.forEach(exercise => {
+    todaysWorkout.exercises.forEach(exercise => {
       distribution[exercise.difficulty]++;
     });
     return distribution;
@@ -88,10 +144,10 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
         {/* Workout Name */}
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-800 mb-2">
-            {beginnerToAdvancedWorkout.name}
+            {todaysWorkout.name}
           </h2>
           <p className="text-gray-600">
-            A complete full-body progression workout
+            {todaysWorkout.description}
           </p>
         </div>
 
@@ -103,7 +159,7 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
                 <Clock className="w-6 h-6 text-blue-600" />
               </div>
               <div className="text-lg font-bold text-gray-800">
-                {formatDuration(totalDuration)}
+                {todaysWorkout.structure.totalDuration}
               </div>
               <div className="text-xs text-gray-600">Duration</div>
             </div>
@@ -112,7 +168,7 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
                 <Target className="w-6 h-6 text-purple-600" />
               </div>
               <div className="text-lg font-bold text-gray-800">
-                {beginnerToAdvancedWorkout.exercises.length}
+                {todaysWorkout.exercises.length}
               </div>
               <div className="text-xs text-gray-600">Exercises</div>
             </div>
@@ -128,25 +184,31 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
           {/* Difficulty Breakdown */}
           <div className="border-t pt-4">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Difficulty Breakdown</h3>
-            <div className="flex gap-2">
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="text-xs text-gray-600">
-                  {difficultyDistribution.Beginner} Beginner
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                <span className="text-xs text-gray-600">
-                  {difficultyDistribution.Intermediate} Intermediate
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <span className="text-xs text-gray-600">
-                  {difficultyDistribution.Advanced} Advanced
-                </span>
-              </div>
+            <div className="flex gap-2 flex-wrap">
+              {difficultyDistribution.Beginner > 0 && (
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <span className="text-xs text-gray-600">
+                    {difficultyDistribution.Beginner} Beginner
+                  </span>
+                </div>
+              )}
+              {difficultyDistribution.Intermediate > 0 && (
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                  <span className="text-xs text-gray-600">
+                    {difficultyDistribution.Intermediate} Intermediate
+                  </span>
+                </div>
+              )}
+              {difficultyDistribution.Advanced > 0 && (
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  <span className="text-xs text-gray-600">
+                    {difficultyDistribution.Advanced} Advanced
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -225,7 +287,7 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">What&apos;s Included</h3>
           <div className="space-y-3 max-h-64 overflow-y-auto">
-            {beginnerToAdvancedWorkout.exercises.slice(0, 5).map((exercise, index) => (
+            {todaysWorkout.exercises.slice(0, 5).map((exercise, index) => (
               <div key={exercise.id} className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
                   {index + 1}
@@ -245,10 +307,10 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
                 </div>
               </div>
             ))}
-            {beginnerToAdvancedWorkout.exercises.length > 5 && (
+            {todaysWorkout.exercises.length > 5 && (
               <div className="text-center py-2">
                 <span className="text-gray-500 text-sm">
-                  +{beginnerToAdvancedWorkout.exercises.length - 5} more exercises
+                  +{todaysWorkout.exercises.length - 5} more exercises
                 </span>
               </div>
             )}
