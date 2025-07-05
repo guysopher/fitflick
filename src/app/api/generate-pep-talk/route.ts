@@ -53,11 +53,11 @@ export async function POST(request: NextRequest) {
     let actualMessageType = messageType;
     if (messageType === 'general') {
       if (mode === 'workout') {
-        actualMessageType = 'motivation';
+        actualMessageType = 'instruction';
       } else if (mode === 'rest') {
         actualMessageType = 'rest-announcement';
       } else {
-        actualMessageType = 'instruction';
+        actualMessageType = 'motivation';
       }
     }
     
