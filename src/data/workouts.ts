@@ -456,9 +456,8 @@ export const weeklyWorkoutSchedule: DailyWorkoutSchedule[] = [
   },
   {
     dayOfWeek: "Saturday",
-    workoutId: 0,
-    workoutName: "Rest Day",
-    restDay: true
+    workoutId: 3,
+    workoutName: "Endurance Core Challenge"
   },
   {
     dayOfWeek: "Sunday",
@@ -468,38 +467,40 @@ export const weeklyWorkoutSchedule: DailyWorkoutSchedule[] = [
 ];
 
 // Get workout for today
-export const getTodaysWorkout = (): CustomWorkout | null => {
+export const getTodaysWorkout = (): CustomWorkout => {
   const today = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const todayName = dayNames[today];
   
   const todaysSchedule = weeklyWorkoutSchedule.find(schedule => schedule.dayOfWeek === todayName);
   
-  if (!todaysSchedule || todaysSchedule.restDay) {
-    return null; // Rest day
+  if (!todaysSchedule) {
+    // Fallback to first workout if schedule not found
+    return customWorkouts[0];
   }
   
-  return customWorkouts.find(workout => workout.id === todaysSchedule.workoutId) || null;
+  return customWorkouts.find(workout => workout.id === todaysSchedule.workoutId) || customWorkouts[0];
 };
 
 // Get workout for a specific date
-export const getWorkoutForDate = (date: Date): CustomWorkout | null => {
+export const getWorkoutForDate = (date: Date): CustomWorkout => {
   const dayOfWeek = date.getDay();
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const dayName = dayNames[dayOfWeek];
   
   const daySchedule = weeklyWorkoutSchedule.find(schedule => schedule.dayOfWeek === dayName);
   
-  if (!daySchedule || daySchedule.restDay) {
-    return null; // Rest day
+  if (!daySchedule) {
+    // Fallback to first workout if schedule not found
+    return customWorkouts[0];
   }
   
-  return customWorkouts.find(workout => workout.id === daySchedule.workoutId) || null;
+  return customWorkouts.find(workout => workout.id === daySchedule.workoutId) || customWorkouts[0];
 };
 
 // Get workout rotation for any continuous sequence (for long-term planning)
-export const getWorkoutRotation = (startDate: Date, numberOfDays: number): (CustomWorkout | null)[] => {
-  const workoutRotation: (CustomWorkout | null)[] = [];
+export const getWorkoutRotation = (startDate: Date, numberOfDays: number): CustomWorkout[] => {
+  const workoutRotation: CustomWorkout[] = [];
   
   for (let i = 0; i < numberOfDays; i++) {
     const currentDate = new Date(startDate);
@@ -510,24 +511,17 @@ export const getWorkoutRotation = (startDate: Date, numberOfDays: number): (Cust
   return workoutRotation;
 };
 
-// Get next workout (skips rest days)
-export const getNextWorkout = (): { workout: CustomWorkout, dayName: string } | null => {
+// Get next workout (next day's workout)
+export const getNextWorkout = (): { workout: CustomWorkout, dayName: string } => {
   const today = new Date();
+  const nextDate = new Date(today);
+  nextDate.setDate(today.getDate() + 1);
   
-  // Check up to 7 days ahead to find the next workout
-  for (let i = 1; i <= 7; i++) {
-    const nextDate = new Date(today);
-    nextDate.setDate(today.getDate() + i);
-    
-    const workout = getWorkoutForDate(nextDate);
-    if (workout) {
-      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      const dayName = dayNames[nextDate.getDay()];
-      return { workout, dayName };
-    }
-  }
+  const workout = getWorkoutForDate(nextDate);
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dayName = dayNames[nextDate.getDay()];
   
-  return null;
+  return { workout, dayName };
 };
 
 export default customWorkouts; 

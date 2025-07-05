@@ -28,7 +28,7 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
       setCompletedWorkouts(JSON.parse(saved));
     }
     
-    // Get today's workout
+    // Get today's workout (now always returns a workout)
     const workout = getTodaysWorkout();
     setTodaysWorkout(workout);
   }, []);
@@ -45,50 +45,12 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
     }
   };
 
-  // If no workout today (rest day), show rest day message
+  // Show loading state if workout is not yet loaded
   if (!todaysWorkout) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-        <div className="container mx-auto max-w-md p-4">
-          {/* Header */}
-          <div className="flex items-center mb-8">
-            <button
-              onClick={onBack}
-              className="p-2 rounded-full hover:bg-white/50 transition-colors mr-3"
-            >
-              <ArrowLeft className="w-6 h-6 text-gray-600" />
-            </button>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Workout of the Day
-              </h1>
-              <p className="text-gray-600 text-sm">
-                {today.toLocaleDateString('en-US', { 
-                  weekday: 'long', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
-              </p>
-            </div>
-          </div>
-
-          {/* Rest Day Message */}
-          <div className="text-center py-16">
-            <div className="text-8xl mb-6">🛌</div>
-            <h2 className="text-3xl font-bold text-gray-800 mb-4">Rest Day</h2>
-            <p className="text-gray-600 text-lg mb-8">
-              Take a well-deserved break! Your body needs time to recover and grow stronger.
-            </p>
-            <div className="bg-blue-50 rounded-2xl p-6 mx-4">
-              <h3 className="text-lg font-semibold text-blue-800 mb-2">💡 Rest Day Tips</h3>
-              <ul className="text-sm text-blue-700 space-y-1">
-                <li>• Stay hydrated</li>
-                <li>• Get good sleep</li>
-                <li>• Light stretching is okay</li>
-                <li>• Come back tomorrow stronger!</li>
-              </ul>
-            </div>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          Loading today's workout...
         </div>
       </div>
     );
@@ -320,9 +282,12 @@ const WorkoutOfTheDay: React.FC<WorkoutOfTheDayProps> = ({ onWorkoutStart, onBac
         {/* Motivation */}
         <div className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl p-6 text-center text-white">
           <h3 className="text-lg font-semibold mb-2">💪 Ready to Get Stronger?</h3>
-          <p className="text-sm opacity-90">
+          <p className="text-sm opacity-90 mb-3">
             Every workout brings you one step closer to your fitness goals. 
             You&apos;ve got this! 🚀
+          </p>
+          <p className="text-xs opacity-75">
+            💡 Tip: Rest days are now optional - listen to your body and take breaks when you need them!
           </p>
         </div>
       </div>
