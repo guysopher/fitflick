@@ -7,7 +7,7 @@ import { useUserData } from '@/hooks/useUserData';
 import { useSession } from 'next-auth/react';
 import BackgroundMusic, { BackgroundMusicRef } from './BackgroundMusic';
 import WorkoutSuccess from './WorkoutSuccess';
-import SimpleVoiceCoach from '@/services/simpleVoiceCoach';
+import TimerVoiceCoach from '@/services/timerVoiceCoach';
 
 const jokes = [
   "Why don't hamsters ever get lost? Because they always know which wheel to turn! 🐹",
@@ -43,7 +43,7 @@ type WorkoutPhase = 'get-ready' | 'workout' | 'rest';
 
 function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose, backgroundMusicRef }: TikTokVideoPlayerProps) {
   const workoutVideoRef = useRef<HTMLVideoElement>(null);
-  const voiceCoachRef = useRef<SimpleVoiceCoach | null>(null);
+  const voiceCoachRef = useRef<TimerVoiceCoach | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -58,7 +58,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose, backgroundMus
 
   // Initialize voice coach
   useEffect(() => {
-    voiceCoachRef.current = SimpleVoiceCoach.getInstance();
+    voiceCoachRef.current = TimerVoiceCoach.getInstance();
     voiceCoachRef.current.setEnabled(true);
     
     return () => {
@@ -71,9 +71,9 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose, backgroundMus
   // Handle voice coaching when workout starts
   useEffect(() => {
     if (voiceCoachRef.current && isPlaying) {
-      console.log(`🎤 Providing voice guidance for workout`);
+      console.log(`🎤 Updating voice coach for workout`);
       
-      voiceCoachRef.current.provideWorkoutGuidance({
+      voiceCoachRef.current.onTimerUpdate({
         exerciseName: exercise.name,
         mode: 'workout',
         timeRemaining: Math.floor(duration - currentTime),
@@ -82,6 +82,24 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose, backgroundMus
       });
     }
   }, [isPlaying, exercise.name]);
+
+  // Update voice coach every second with timer value
+  useEffect(() => {
+    if (voiceCoachRef.current && isPlaying) {
+      const interval = setInterval(() => {
+        const remainingTime = Math.floor(duration - currentTime);
+        voiceCoachRef.current?.onTimerUpdate({
+          exerciseName: exercise.name,
+          mode: 'workout',
+          timeRemaining: remainingTime,
+          currentStep: 1,
+          totalSteps: 1
+        });
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [isPlaying, exercise.name, duration, currentTime]);
 
   // Handle pause/resume of voice
   useEffect(() => {

@@ -6,7 +6,7 @@ import WorkoutOfTheDay from './WorkoutOfTheDay';
 import BackgroundMusic, { BackgroundMusicRef } from './BackgroundMusic';
 import { beginnerToAdvancedWorkout, Exercise } from '@/data/exercises';
 import { CustomWorkout } from '@/data/workouts';
-import SimpleVoiceCoach from '@/services/simpleVoiceCoach';
+import TimerVoiceCoach, { VoiceDebugInfo } from '@/services/timerVoiceCoach';
 
 // Import the TikTokVideoPlayer from GameWorkoutApp
 import { videos } from '@/data/videos';
@@ -270,8 +270,9 @@ function TikTokVideoPlayer({
   const [showPlayPauseAnimation, setShowPlayPauseAnimation] = useState(false);
   const [animationIcon, setAnimationIcon] = useState<'play' | 'pause'>('play');
   const [voiceCoachEnabled] = useState(preferences.coachEnabled);
-  const [voiceStatus, setVoiceStatus] = useState<'loading' | 'available' | 'unavailable'>('loading');
-  const voiceCoach = React.useRef<SimpleVoiceCoach | null>(null);
+  const [voiceStatus, setVoiceStatus] = useState<'loading' | 'available' | 'unavailable'>('available');
+  const [debugInfo, setDebugInfo] = useState<VoiceDebugInfo | null>(null);
+  const voiceCoach = React.useRef<TimerVoiceCoach | null>(null);
   const currentAudioContext = React.useRef<AudioContext | null>(null);
   const pepTalkTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const hasDeliveredMotivation = React.useRef<boolean>(false);
@@ -365,25 +366,21 @@ function TikTokVideoPlayer({
   // Initialize voice coach
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
-      voiceCoach.current = SimpleVoiceCoach.getInstance();
+      voiceCoach.current = TimerVoiceCoach.getInstance();
       voiceCoach.current.setEnabled(voiceCoachEnabled);
       
-      // Check voice status
-      const checkVoiceStatus = () => {
-        if (voiceCoach.current) {
-          const isAvailable = voiceCoach.current.isVoiceSupported();
-          setVoiceStatus(isAvailable ? 'available' : 'unavailable');
-        }
-      };
+      // Set up debug info callback
+      voiceCoach.current.onDebugUpdate((info) => {
+        setDebugInfo(info);
+      });
       
-      // Check immediately and after a short delay
-      checkVoiceStatus();
-      setTimeout(checkVoiceStatus, 500);
+      // TimerVoiceCoach is always available (uses pre-recorded audio)
+      setVoiceStatus('available');
     }
 
     return () => {
       if (voiceCoach.current) {
-        voiceCoach.current.stopSpeaking();
+        // voiceCoach.current.stopSpeaking();
       }
       if (pepTalkTimeoutRef.current) {
         clearTimeout(pepTalkTimeoutRef.current);
@@ -406,9 +403,9 @@ function TikTokVideoPlayer({
   // Trigger voice guidance when mode changes
   React.useEffect(() => {
     if (voiceCoach.current && voiceCoachEnabled) {
-      console.log(`🎤 Providing voice guidance for ${mode} mode`);
+      console.log(`🎤 Updating voice coach for ${mode} mode`);
       
-      voiceCoach.current.provideWorkoutGuidance({
+      voiceCoach.current.onTimerUpdate({
         exerciseName: exercise.name,
         mode,
         timeRemaining: timer,
@@ -416,7 +413,7 @@ function TikTokVideoPlayer({
         totalSteps: totalExercises
       });
     }
-  }, [mode, exercise.name, voiceCoachEnabled]);
+  }, [mode, exercise.name, voiceCoachEnabled, timer]);
 
   // Handle pause/resume of voice
   React.useEffect(() => {
@@ -424,6 +421,23 @@ function TikTokVideoPlayer({
       voiceCoach.current.stopSpeaking();
     }
   }, [isPaused]);
+
+  // Update voice coach every second with timer value
+  // React.useEffect(() => {
+  //   if (voiceCoach.current && voiceCoachEnabled && !isPaused) {
+  //     const interval = setInterval(() => {
+  //       voiceCoach.current?.onTimerUpdate({
+  //         exerciseName: exercise.name,
+  //         mode,
+  //         timeRemaining: currentTimer,
+  //         currentStep: currentExerciseIndex,
+  //         totalSteps: totalExercises
+  //       });
+  //     }, 1000);
+
+  //     return () => clearInterval(interval);
+  //   }
+  // }, [voiceCoachEnabled, isPaused, exercise.name, mode, currentExerciseIndex, totalExercises]);
 
   React.useEffect(() => {
     const video = videoRef.current;
@@ -670,16 +684,29 @@ function TikTokVideoPlayer({
       {/* Debug Voice Schedule Panel (only in development) */}
       {process.env.NODE_ENV === 'development' && (
         <div className="fixed top-4 right-4 z-50 bg-black/80 text-white p-4 rounded-lg max-w-sm">
-          <h3 className="font-bold mb-2">🎤 Voice Schedule Debug</h3>
+          <h3 className="font-bold mb-2">🎤 Timer Voice Coach Debug</h3>
           <div className="text-sm space-y-1">
             <div>Mode: {mode}</div>
             <div>Timer: {currentTimer}s</div>
             <div>Exercise: {exercise.name}</div>
             <div>Coach Enabled: {voiceCoachEnabled ? '✅' : '❌'}</div>
-            <div>Voice Status: {voiceStatus === 'available' ? '✅ Working' : voiceStatus === 'unavailable' ? '❌ Not Available' : '⏳ Loading'}</div>
+            <div>Voice Status: {voiceStatus === 'available' ? '✅ Available' : voiceStatus === 'unavailable' ? '❌ Not Available' : '⏳ Loading'}</div>
             <div>Paused: {isPaused ? '⏸️' : '▶️'}</div>
+            {debugInfo && (
+              <div className="border-t pt-2 mt-2">
+                <div className="text-xs font-semibold mb-1">Voice System Status:</div>
+                <div className="text-xs space-y-1">
+                  <div>Current: {debugInfo.currentAction}</div>
+                  <div>Next: {debugInfo.nextAction}</div>
+                  <div>Cache: {debugInfo.cacheStatus === 'ready' ? '✅ Ready' : debugInfo.cacheStatus === 'loading' ? '⏳ Loading' : '❌ Empty'}</div>
+                  <div>Audio: {debugInfo.audioStatus === 'playing' ? '🔊 Playing' : debugInfo.audioStatus === 'error' ? '❌ Error' : '⏸️ Idle'}</div>
+                  <div>Generation: {debugInfo.generationStatus === 'generating' ? '⏳ Generating' : debugInfo.generationStatus === 'ready' ? '✅ Ready' : debugInfo.generationStatus === 'error' ? '❌ Error' : '⏸️ Idle'}</div>
+                  <div>Last Trigger: {debugInfo.lastTriggerTime > 0 ? `${debugInfo.lastTriggerTime}s` : 'None'}</div>
+                </div>
+              </div>
+            )}
             <div className="text-xs opacity-75 mt-2">
-              Voice system will trigger at specific remaining times and cache upcoming voices for seamless playback.
+              Voice triggers at multiples of 10 seconds (10s, 20s, 30s, etc.)
             </div>
           </div>
         </div>
@@ -693,10 +720,19 @@ function TikTokVideoPlayer({
             voiceStatus === 'unavailable' ? 'bg-red-500/80 text-white' :
             'bg-yellow-500/80 text-white'
           }`}>
-            {voiceStatus === 'available' ? '🎤 Voice Ready' :
+            {voiceStatus === 'available' ? 
+              (debugInfo?.audioStatus === 'playing' ? '🎤 Playing' : 
+               debugInfo?.generationStatus === 'generating' ? '🎤 Generating' : 
+               '🎤 Ready') :
              voiceStatus === 'unavailable' ? '🎤 Voice Unavailable' :
              '🎤 Loading Voice...'}
           </div>
+          {/* Timer-based trigger indicator */}
+          {debugInfo?.nextAction && debugInfo.nextAction !== 'Disabled' && (
+            <div className="text-xs text-white bg-black/50 px-2 py-1 rounded mt-1">
+              {debugInfo.nextAction}
+            </div>
+          )}
         </div>
       )}
 

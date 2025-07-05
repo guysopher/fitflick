@@ -70,9 +70,9 @@ export function generateWorkoutPrompt(context: PromptContext): string {
  * Purpose: Fun, calming recovery message
  */
 export function generateRestPrompt(context: PromptContext): string {
-  const { userName } = context;
+  const { userName, exerciseName } = context;
   
-  return `You're a gentle but fun kids' coach! Give ${userName} a silly rest message - maybe they're a sleepy sloth or recharging robot! Keep it calm but giggly. Under 8 words - make rest time fun too!`;
+  return `You're a gentle but fun kids' coach! Prepare ${userName} for rest after "${exerciseName}" - maybe they're a sleepy sloth or recharging robot! Keep it calm but giggly. Under 8 words - make rest time fun too!`;
 }
 
 /**

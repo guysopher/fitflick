@@ -9,10 +9,10 @@ const elevenlabs = new ElevenLabsClient({
 // ElevenLabs voice configuration
 const VOICE_CONFIG = {
   voiceId: 'MojQmyO0sDHQNLenis1h', // Your custom recorded voice
-  modelId: 'eleven_turbo_v2_5', // Fast, high quality
-  stability: 1,
-  similarityBoost: 1,
-  style: 1,
+  modelId: 'eleven_v3', // Fast, high quality
+  stability: 50,
+  similarityBoost: 75,
+  style: 0,
   useSpeakerBoost: false,
 };
 

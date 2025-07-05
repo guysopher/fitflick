@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Droplets, Share, Play, Pause, RotateCcw, Volume2, VolumeX, Flame, Target, Clock, ArrowLeft, User, Settings, Trophy, TrendingUp, Zap } from 'lucide-react';
 import { exercises, Exercise } from '@/data/exercises';
 import { videos } from '@/data/videos';
-import SimpleVoiceCoach from '@/services/simpleVoiceCoach';
+import TimerVoiceCoach from '@/services/timerVoiceCoach';
 import BackgroundMusic, { BackgroundMusicRef } from './BackgroundMusic';
 import WorkoutSuccess from './WorkoutSuccess';
 
@@ -63,7 +63,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose, backgroundMus
   const getReadyVideoRef = useRef<HTMLVideoElement>(null);
   const workoutVideoRef = useRef<HTMLVideoElement>(null);
   const restVideoRef = useRef<HTMLVideoElement>(null);
-  const voiceCoachRef = useRef<SimpleVoiceCoach | null>(null);
+  const voiceCoachRef = useRef<TimerVoiceCoach | null>(null);
   
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -93,7 +93,7 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose, backgroundMus
 
   // Initialize voice coach
   useEffect(() => {
-    voiceCoachRef.current = SimpleVoiceCoach.getInstance();
+    voiceCoachRef.current = TimerVoiceCoach.getInstance();
     voiceCoachRef.current.setEnabled(true);
     
     return () => {
@@ -106,9 +106,9 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose, backgroundMus
   // Handle voice coaching when mode changes
   useEffect(() => {
     if (voiceCoachRef.current) {
-      console.log(`🎤 Providing voice guidance for ${currentPhase} phase`);
+      console.log(`🎤 Updating voice coach for ${currentPhase} phase`);
       
-      voiceCoachRef.current.provideWorkoutGuidance({
+      voiceCoachRef.current.onTimerUpdate({
         exerciseName: exercise.name,
         mode: currentPhase,
         timeRemaining: phaseTimer,
@@ -117,6 +117,23 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose, backgroundMus
       });
     }
   }, [currentPhase, exercise.name]);
+
+  // Update voice coach every second with timer value
+  useEffect(() => {
+    if (voiceCoachRef.current && !isPausedByUser && currentPhase === 'workout') {
+      const interval = setInterval(() => {
+        voiceCoachRef.current?.onTimerUpdate({
+          exerciseName: exercise.name,
+          mode: currentPhase,
+          timeRemaining: Math.floor(workoutVideoRef.current?.duration || 0) - Math.floor(workoutVideoRef.current?.currentTime || 0),
+          currentStep: 1,
+          totalSteps: 1
+        });
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [isPausedByUser, currentPhase, exercise.name]);
 
   // Handle pause/resume of voice
   useEffect(() => {
