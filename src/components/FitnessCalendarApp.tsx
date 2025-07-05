@@ -713,7 +713,7 @@ function TikTokVideoPlayer({
       )}
 
       {/* Voice Status Indicator (always visible when voice is enabled) */}
-      {voiceCoachEnabled && (
+      {voiceCoachEnabled && process.env.NODE_ENV === 'development' && (
         <div className="fixed top-4 left-4 z-50">
           <div className={`px-3 py-1 rounded-full text-sm font-medium ${
             voiceStatus === 'available' ? 'bg-green-500/80 text-white' :
