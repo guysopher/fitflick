@@ -6,7 +6,7 @@ import WorkoutOfTheDay from './WorkoutOfTheDay';
 import BackgroundMusic, { BackgroundMusicRef } from './BackgroundMusic';
 import { beginnerToAdvancedWorkout, Exercise } from '@/data/exercises';
 import { CustomWorkout } from '@/data/workouts';
-import { FitnessVoiceCoach, PepTalkOptions } from '@/services/fitnessVoiceCoach';
+import SimpleVoiceCoach from '@/services/simpleVoiceCoach';
 
 // Import the TikTokVideoPlayer from GameWorkoutApp
 import { videos } from '@/data/videos';
@@ -270,7 +270,8 @@ function TikTokVideoPlayer({
   const [showPlayPauseAnimation, setShowPlayPauseAnimation] = useState(false);
   const [animationIcon, setAnimationIcon] = useState<'play' | 'pause'>('play');
   const [voiceCoachEnabled] = useState(preferences.coachEnabled);
-  const voiceCoach = React.useRef<FitnessVoiceCoach | null>(null);
+  const [voiceStatus, setVoiceStatus] = useState<'loading' | 'available' | 'unavailable'>('loading');
+  const voiceCoach = React.useRef<SimpleVoiceCoach | null>(null);
   const currentAudioContext = React.useRef<AudioContext | null>(null);
   const pepTalkTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const hasDeliveredMotivation = React.useRef<boolean>(false);
@@ -364,13 +365,20 @@ function TikTokVideoPlayer({
   // Initialize voice coach
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
-      voiceCoach.current = FitnessVoiceCoach.getInstance();
+      voiceCoach.current = SimpleVoiceCoach.getInstance();
       voiceCoach.current.setEnabled(voiceCoachEnabled);
       
-      // Register audio sources for coordination
-      if (backgroundMusicRef && currentAudioContext) {
-        voiceCoach.current.registerAudioSources(backgroundMusicRef, currentAudioContext);
-      }
+      // Check voice status
+      const checkVoiceStatus = () => {
+        if (voiceCoach.current) {
+          const isAvailable = voiceCoach.current.isVoiceSupported();
+          setVoiceStatus(isAvailable ? 'available' : 'unavailable');
+        }
+      };
+      
+      // Check immediately and after a short delay
+      checkVoiceStatus();
+      setTimeout(checkVoiceStatus, 500);
     }
 
     return () => {
@@ -386,14 +394,7 @@ function TikTokVideoPlayer({
         currentAudioContext.current = null;
       }
     };
-  }, [backgroundMusicRef]);
-
-  // Update voice coach audio source registration when audio context changes
-  React.useEffect(() => {
-    if (voiceCoach.current && backgroundMusicRef && currentAudioContext) {
-      voiceCoach.current.registerAudioSources(backgroundMusicRef, currentAudioContext);
-    }
-  }, [backgroundMusicRef, currentAudioContext.current]);
+  }, [voiceCoachEnabled]);
 
   // Handle voice coach enable/disable
   React.useEffect(() => {
@@ -402,50 +403,27 @@ function TikTokVideoPlayer({
     }
   }, [voiceCoachEnabled]);
 
-  // NEW: Initialize voice schedule when mode changes
+  // Trigger voice guidance when mode changes
   React.useEffect(() => {
     if (voiceCoach.current && voiceCoachEnabled) {
-      console.log(`🎤 Setting up voice schedule for ${mode} mode`);
+      console.log(`🎤 Providing voice guidance for ${mode} mode`);
       
-      voiceCoach.current.initializeVoiceSchedule({
-        mode,
-        totalSeconds: timer,
+      voiceCoach.current.provideWorkoutGuidance({
         exerciseName: exercise.name,
+        mode,
+        timeRemaining: timer,
         currentStep: currentExerciseIndex,
-        totalSteps: totalExercises,
-        nextExerciseName: nextExercise?.name
+        totalSteps: totalExercises
       });
     }
-  }, [mode, exercise.name, voiceCoachEnabled, timer, currentExerciseIndex, totalExercises, nextExercise?.name]);
+  }, [mode, exercise.name, voiceCoachEnabled]);
 
-  // Handle pause/resume of voice schedule
+  // Handle pause/resume of voice
   React.useEffect(() => {
-    if (voiceCoach.current) {
-      if (isPaused) {
-        voiceCoach.current.pauseVoiceSchedule();
-      } else {
-        voiceCoach.current.resumeVoiceSchedule();
-      }
+    if (voiceCoach.current && isPaused) {
+      voiceCoach.current.stopSpeaking();
     }
   }, [isPaused]);
-
-  // Sync voice coach timer with actual timer
-  React.useEffect(() => {
-    if (voiceCoach.current) {
-      voiceCoach.current.updateRemainingTime(currentTimer);
-    }
-  }, [currentTimer]);
-
-  // Reset motivation flag when mode changes
-  React.useEffect(() => {
-    hasDeliveredMotivation.current = false;
-    
-    // Clear any pending motivation timeout
-    if (pepTalkTimeoutRef.current) {
-      clearTimeout(pepTalkTimeoutRef.current);
-      pepTalkTimeoutRef.current = null;
-    }
-  }, [mode, exercise.name]);
 
   React.useEffect(() => {
     const video = videoRef.current;
@@ -698,10 +676,26 @@ function TikTokVideoPlayer({
             <div>Timer: {currentTimer}s</div>
             <div>Exercise: {exercise.name}</div>
             <div>Coach Enabled: {voiceCoachEnabled ? '✅' : '❌'}</div>
+            <div>Voice Status: {voiceStatus === 'available' ? '✅ Working' : voiceStatus === 'unavailable' ? '❌ Not Available' : '⏳ Loading'}</div>
             <div>Paused: {isPaused ? '⏸️' : '▶️'}</div>
             <div className="text-xs opacity-75 mt-2">
               Voice system will trigger at specific remaining times and cache upcoming voices for seamless playback.
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Voice Status Indicator (always visible when voice is enabled) */}
+      {voiceCoachEnabled && (
+        <div className="fixed top-4 left-4 z-50">
+          <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+            voiceStatus === 'available' ? 'bg-green-500/80 text-white' :
+            voiceStatus === 'unavailable' ? 'bg-red-500/80 text-white' :
+            'bg-yellow-500/80 text-white'
+          }`}>
+            {voiceStatus === 'available' ? '🎤 Voice Ready' :
+             voiceStatus === 'unavailable' ? '🎤 Voice Unavailable' :
+             '🎤 Loading Voice...'}
           </div>
         </div>
       )}

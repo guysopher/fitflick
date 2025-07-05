@@ -4,6 +4,20 @@
 
 **FitFlick** transforms boring workouts into an engaging, gamified fitness adventure! With animated characters, TikTok-style workout videos, and a complete progression system, getting fit has never been this fun.
 
+## 🆕 Recent Updates
+
+### Rest Days Now Optional ✨
+- **Removed mandatory rest days** - You now have a workout available every day of the week
+- **User-controlled rest** - Take breaks when YOU decide, not when the app decides  
+- **Continuous motivation** - Stay consistent with daily workout options
+- **7-day workout rotation** - Balanced variety across all days of the week
+
+### Voice System Enhancements 🎤
+- **Single voice guarantee** - Only one voice plays at a time (no more overlapping audio)
+- **Audio coordination** - Smart pause/resume of background music during voice coaching
+- **Priority-based voice queue** - Important announcements play first
+- **Seamless audio experience** - Voice coaching works perfectly with background music
+
 ## ✨ Features That Make You Want to Move
 
 ### 🎮 Gamification System

@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Droplets, Share, Play, Pause, RotateCcw, Volume2, VolumeX, Flame, Target, ArrowLeft, Clock, Trophy } from 'lucide-react';
+import { Droplets, Share, Play, Pause, RotateCcw, Volume2, VolumeX, Flame, Target, ArrowLeft, Clock, Trophy, SkipForward, User, Settings, TrendingUp, Zap } from 'lucide-react';
 import { exercises, Exercise } from '@/data/exercises';
 import { useUserData } from '@/hooks/useUserData';
 import { useSession } from 'next-auth/react';
 import BackgroundMusic, { BackgroundMusicRef } from './BackgroundMusic';
 import WorkoutSuccess from './WorkoutSuccess';
-import { FitnessVoiceCoach } from '@/services/fitnessVoiceCoach';
+import SimpleVoiceCoach from '@/services/simpleVoiceCoach';
 
 const jokes = [
   "Why don't hamsters ever get lost? Because they always know which wheel to turn! 🐹",
@@ -43,7 +43,7 @@ type WorkoutPhase = 'get-ready' | 'workout' | 'rest';
 
 function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose, backgroundMusicRef }: TikTokVideoPlayerProps) {
   const workoutVideoRef = useRef<HTMLVideoElement>(null);
-  const voiceCoachRef = useRef<FitnessVoiceCoach | null>(null);
+  const voiceCoachRef = useRef<SimpleVoiceCoach | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -58,49 +58,37 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose, backgroundMus
 
   // Initialize voice coach
   useEffect(() => {
-    voiceCoachRef.current = FitnessVoiceCoach.getInstance();
+    voiceCoachRef.current = SimpleVoiceCoach.getInstance();
+    voiceCoachRef.current.setEnabled(true);
     
-    // Register audio sources for coordination
-    if (backgroundMusicRef) {
-      voiceCoachRef.current.registerAudioSources(backgroundMusicRef, undefined);
-    }
-    
-    // Cleanup: stop voice coach when component unmounts
     return () => {
-      voiceCoachRef.current?.stopSpeaking();
+      if (voiceCoachRef.current) {
+        voiceCoachRef.current.stopSpeaking();
+      }
     };
-  }, [backgroundMusicRef]);
+  }, []);
 
-  // NEW: Initialize voice schedule when phase changes
+  // Handle voice coaching when workout starts
   useEffect(() => {
-    if (voiceCoachRef.current) {
-      console.log(`🎤 Setting up voice schedule for ${currentPhase} phase`);
+    if (voiceCoachRef.current && isPlaying) {
+      console.log(`🎤 Providing voice guidance for workout`);
       
-      // Calculate timer based on phase
-      const totalSeconds = currentPhase === 'get-ready' ? 5 : 
-                          currentPhase === 'workout' ? Math.floor(duration) || 20 : 
-                          10; // rest duration
-      
-      voiceCoachRef.current.initializeVoiceSchedule({
-        mode: currentPhase,
-        totalSeconds,
+      voiceCoachRef.current.provideWorkoutGuidance({
         exerciseName: exercise.name,
-        currentStep: 0,
-        totalSteps: 1,
-        nextExerciseName: undefined
+        mode: 'workout',
+        timeRemaining: Math.floor(duration - currentTime),
+        currentStep: 1,
+        totalSteps: 1
       });
     }
-  }, [currentPhase, exercise.name, duration]);
+  }, [isPlaying, exercise.name]);
 
-  // Sync voice coach timer with phase timer and current time
+  // Handle pause/resume of voice
   useEffect(() => {
-    if (voiceCoachRef.current) {
-      const remainingTime = currentPhase === 'get-ready' ? phaseTimer :
-                           currentPhase === 'workout' ? Math.floor(duration - currentTime) :
-                           10; // rest time
-      voiceCoachRef.current.updateRemainingTime(remainingTime);
+    if (voiceCoachRef.current && !isPlaying) {
+      voiceCoachRef.current.stopSpeaking();
     }
-  }, [phaseTimer, currentTime, duration, currentPhase]);
+  }, [isPlaying]);
 
   // Timer effect for get-ready phase
   useEffect(() => {
