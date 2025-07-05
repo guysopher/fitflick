@@ -366,6 +366,11 @@ function TikTokVideoPlayer({
     if (typeof window !== 'undefined') {
       voiceCoach.current = FitnessVoiceCoach.getInstance();
       voiceCoach.current.setEnabled(voiceCoachEnabled);
+      
+      // Register audio sources for coordination
+      if (backgroundMusicRef && currentAudioContext) {
+        voiceCoach.current.registerAudioSources(backgroundMusicRef, currentAudioContext);
+      }
     }
 
     return () => {
@@ -381,7 +386,14 @@ function TikTokVideoPlayer({
         currentAudioContext.current = null;
       }
     };
-  }, []);
+  }, [backgroundMusicRef]);
+
+  // Update voice coach audio source registration when audio context changes
+  React.useEffect(() => {
+    if (voiceCoach.current && backgroundMusicRef && currentAudioContext) {
+      voiceCoach.current.registerAudioSources(backgroundMusicRef, currentAudioContext);
+    }
+  }, [backgroundMusicRef, currentAudioContext.current]);
 
   // Handle voice coach enable/disable
   React.useEffect(() => {

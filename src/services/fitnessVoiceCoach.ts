@@ -28,6 +28,7 @@ interface VoiceSchedule {
   isGenerated: boolean;
   isPlaying: boolean;
   hasFailed: boolean;
+  priority: number; // New: Priority for voice queue (lower number = higher priority)
 }
 
 interface TimerState {
@@ -47,11 +48,16 @@ export class FitnessVoiceCoach {
   private audioCache: AudioCache = {};
   private generationInProgress: Set<string> = new Set();
   
-  // New robust voice scheduling system
+  // Enhanced voice scheduling system
   private voiceSchedule: VoiceSchedule[] = [];
   private timerState: TimerState | null = null;
   private timerInterval: NodeJS.Timeout | null = null;
   private isScheduleActive: boolean = false;
+  
+  // New: Voice queue management
+  private voiceQueue: VoiceSchedule[] = [];
+  private isPlayingVoice: boolean = false;
+  private currentVoicePromise: Promise<void> | null = null;
   
   // Fallback system
   private fallbackAudioFiles: Map<string, string> = new Map([
@@ -60,6 +66,11 @@ export class FitnessVoiceCoach {
     ['mid-workout', '/audio/music2.mp3'],
     ['rest', '/audio/Get Ready.mp3']
   ]);
+
+  // NEW: Audio coordination for preventing interference
+  private backgroundMusicRef: React.RefObject<any> | null = null;
+  private audioContextRef: React.MutableRefObject<AudioContext | null> | null = null;
+  private wasBackgroundMusicPlaying: boolean = false;
 
   private constructor() {
     // Initialize fallback audio preloading
@@ -74,60 +85,54 @@ export class FitnessVoiceCoach {
   }
 
   private preloadFallbackAudio(): void {
-    // Preload fallback audio files
-    this.fallbackAudioFiles.forEach((audioPath, key) => {
-      const audio = new Audio(audioPath);
-      audio.preload = 'auto';
+    // Preload fallback audio files to avoid loading delays
+    this.fallbackAudioFiles.forEach((path, key) => {
+      const audio = new Audio(path);
       audio.load();
-      console.log(`🎵 Preloaded fallback audio: ${key} -> ${audioPath}`);
     });
   }
 
   setEnabled(enabled: boolean) {
     this.isEnabled = enabled;
     if (!enabled) {
+      // Stop all voice-related activity
       this.stopAllVoice();
-      this.clearVoiceSchedule();
+      // Resume external audio that might have been paused
+      this.resumeExternalAudio();
     }
   }
 
-  // Generate cache key for audio
   private generateCacheKey(options: PepTalkOptions): string {
-    const { exerciseName, currentStep, messageType, mode } = options;
-    return `${exerciseName}-${currentStep}-${messageType || mode}`;
+    return `${options.mode}-${options.exerciseName}-${options.messageType || 'general'}-${options.currentStep}`;
   }
 
-  // Pre-generate audio for upcoming message
   async preGenerateAudio(options: PepTalkOptions): Promise<void> {
+    if (!this.isEnabled) return;
+
     const cacheKey = this.generateCacheKey(options);
     
-    // Skip if already generated or in progress
+    // Check if already cached or in progress
     if (this.audioCache[cacheKey] || this.generationInProgress.has(cacheKey)) {
       return;
     }
 
     this.generationInProgress.add(cacheKey);
-
+    
     try {
-      // Generate text first
-      const text = await this.generatePepTalk(options);
-      
-      // Generate audio via API route
-      const audioBlob = await this.generateAudioFromText(text);
+      const pepTalk = await this.generatePepTalk(options);
+      const audioBlob = await this.generateAudioFromText(pepTalk);
       
       if (audioBlob) {
-        // Store audio blob in cache
         this.audioCache[cacheKey] = audioBlob;
-        console.log(`Pre-generated audio for: ${cacheKey}`);
+        console.log(`✅ Pre-generated audio cached for: ${cacheKey}`);
       }
     } catch (error) {
-      console.error('Error pre-generating audio:', error);
+      console.error(`❌ Failed to pre-generate audio for ${cacheKey}:`, error);
     } finally {
       this.generationInProgress.delete(cacheKey);
     }
   }
 
-  // Clear old cache entries to prevent memory leaks
   clearCache(): void {
     this.audioCache = {};
     this.generationInProgress.clear();
@@ -192,6 +197,7 @@ export class FitnessVoiceCoach {
 
   private async generateAudioFromText(text: string): Promise<Blob | null> {
     try {
+      // Voice generation doesn't need audio coordination - it's just API call
       // Call API route for TTS
       const response = await fetch('/api/tts', {
         method: 'POST',
@@ -214,61 +220,117 @@ export class FitnessVoiceCoach {
     }
   }
 
-  private async speakText(text: string): Promise<void> {
-    if (!this.isEnabled) return;
+  // NEW: Register external audio references for coordination
+  registerAudioSources(backgroundMusicRef?: React.RefObject<any>, audioContextRef?: React.MutableRefObject<AudioContext | null>) {
+    this.backgroundMusicRef = backgroundMusicRef || null;
+    this.audioContextRef = audioContextRef || null;
+  }
 
-    // Stop any currently playing audio
-    this.stopSpeaking();
+  // NEW: Stop all external audio before voice playback
+  private stopExternalAudio(): void {
+    try {
+      // Only coordinate with external audio if voice is enabled
+      if (!this.isEnabled) return;
+
+      // Stop background music if it's playing
+      if (this.backgroundMusicRef?.current) {
+        this.wasBackgroundMusicPlaying = this.backgroundMusicRef.current.isPlaying;
+        if (this.wasBackgroundMusicPlaying) {
+          console.log('🎤 Pausing background music for voice');
+          this.backgroundMusicRef.current.pauseMusic();
+        }
+      }
+
+      // Stop any tabata beeps (AudioContext)
+      if (this.audioContextRef?.current) {
+        console.log('🎤 Stopping tabata beeps for voice');
+        this.audioContextRef.current.close();
+        this.audioContextRef.current = null;
+      }
+    } catch (error) {
+      console.error('Error stopping external audio:', error);
+    }
+  }
+
+  // NEW: Resume external audio after voice finishes
+  private resumeExternalAudio(): void {
+    try {
+      // Resume background music if it was playing
+      if (this.backgroundMusicRef?.current && this.wasBackgroundMusicPlaying) {
+        console.log('🎤 Resuming background music after voice');
+        // Small delay to ensure voice audio is completely finished
+        setTimeout(() => {
+          if (this.backgroundMusicRef?.current) {
+            this.backgroundMusicRef.current.resumeMusic();
+          }
+          this.wasBackgroundMusicPlaying = false;
+        }, 200);
+      }
+    } catch (error) {
+      console.error('Error resuming external audio:', error);
+    }
+  }
+
+  // NEW: Enhanced voice playback with proper queue management
+  private async playVoiceFromQueue(): Promise<void> {
+    if (this.isPlayingVoice || this.voiceQueue.length === 0) return;
+
+    // Get the highest priority voice from queue
+    this.voiceQueue.sort((a, b) => a.priority - b.priority);
+    const voice = this.voiceQueue.shift()!;
+
+    this.isPlayingVoice = true;
+    console.log(`🎤 Playing voice from queue: ${voice.id} (priority: ${voice.priority})`);
 
     try {
-      // Generate audio via API route
-      const audioBlob = await this.generateAudioFromText(text);
+      // Stop all audio sources before playing voice
+      this.stopCurrentAudio();
+      this.stopExternalAudio();
+
+      if (voice.audioData && voice.isGenerated) {
+        // Play generated audio
+        await this.playAudioBlob(voice.audioData);
+      } else {
+        // Use fallback system
+        await this.playFallbackAudio(voice);
+      }
+    } catch (error) {
+      console.error(`❌ Failed to play voice ${voice.id}:`, error);
+      voice.hasFailed = true;
+    } finally {
+      this.isPlayingVoice = false;
+      voice.isPlaying = false;
       
-      if (!audioBlob) {
-        console.error('Failed to generate audio blob');
-        return;
+      // Resume external audio after voice finishes
+      this.resumeExternalAudio();
+      
+      // Process next voice in queue
+      if (this.voiceQueue.length > 0) {
+        setTimeout(() => this.playVoiceFromQueue(), 100);
       }
-
-      // Play the audio blob
-      await this.playAudioBlob(audioBlob);
-
-    } catch (error) {
-      console.error('TTS error:', error);
-      // Fail silently for TTS errors
-      return;
     }
   }
 
-  async deliverPepTalk(options: PepTalkOptions): Promise<void> {
-    if (!this.isEnabled) return;
+  // NEW: Add voice to queue with priority
+  private addVoiceToQueue(voice: VoiceSchedule): void {
+    if (voice.isPlaying || voice.hasFailed) return;
 
-    try {
-      const pepTalk = await this.generatePepTalk(options);
-      await this.speakText(pepTalk);
-    } catch (error) {
-      console.error('Error delivering pep talk:', error);
-    }
+    // Remove any existing voice with same ID from queue
+    this.voiceQueue = this.voiceQueue.filter(v => v.id !== voice.id);
+    
+    // Add new voice to queue
+    this.voiceQueue.push(voice);
+    
+    // Start processing queue
+    this.playVoiceFromQueue();
   }
 
-  // Immediate pep talk for important moments (start of exercise, transitions)
-  async deliverImmediatePepTalk(options: PepTalkOptions): Promise<void> {
-    if (!this.isEnabled) return;
-
-    const cacheKey = this.generateCacheKey(options);
-
-    try {
-      // Check if we have pre-generated audio
-      if (this.audioCache[cacheKey]) {
-        console.log(`Using cached audio for: ${cacheKey}`);
-        await this.playAudioBlob(this.audioCache[cacheKey]);
-        return;
-      }
-
-      // Fallback to real-time generation
-      const pepTalk = await this.generatePepTalk(options);
-      await this.speakText(pepTalk);
-    } catch (error) {
-      console.error('Error delivering immediate pep talk:', error);
+  // NEW: Stop current audio without affecting queue
+  private stopCurrentAudio(): void {
+    if (this.currentUtterance) {
+      this.currentUtterance.pause();
+      this.currentUtterance.currentTime = 0;
+      this.currentUtterance = null;
     }
   }
 
@@ -287,8 +349,9 @@ export class FitnessVoiceCoach {
     
     console.log(`🎤 Initializing voice schedule for ${mode} mode:`, options);
     
-    // Clear existing schedule
+    // Clear existing schedule and queue
     this.clearVoiceSchedule();
+    this.clearVoiceQueue();
     
     // Create new schedule based on mode
     switch (mode) {
@@ -308,7 +371,7 @@ export class FitnessVoiceCoach {
   }
 
   private createGetReadySchedule(totalSeconds: number, exerciseName: string, currentStep: number, totalSteps: number): void {
-    // 1. Immediate: Play default get-ready audio
+    // 1. Immediate: Play default get-ready audio (highest priority)
     this.voiceSchedule.push({
       id: 'get-ready-immediate',
       triggerTime: totalSeconds - 1, // Play almost immediately
@@ -325,7 +388,8 @@ export class FitnessVoiceCoach {
       },
       isGenerated: false,
       isPlaying: false,
-      hasFailed: false
+      hasFailed: false,
+      priority: 1
     });
 
     // 2. Prepare workout instruction voice (to be ready when workout starts)
@@ -345,7 +409,8 @@ export class FitnessVoiceCoach {
       },
       isGenerated: false,
       isPlaying: false,
-      hasFailed: false
+      hasFailed: false,
+      priority: 10 // Lower priority - this is just preparation
     });
   }
 
@@ -367,7 +432,8 @@ export class FitnessVoiceCoach {
       },
       isGenerated: false,
       isPlaying: false,
-      hasFailed: false
+      hasFailed: false,
+      priority: 1
     });
 
     // 2. Mid-workout motivation (at 50% remaining time)
@@ -389,7 +455,8 @@ export class FitnessVoiceCoach {
         },
         isGenerated: false,
         isPlaying: false,
-        hasFailed: false
+        hasFailed: false,
+        priority: 2
       });
     }
 
@@ -410,7 +477,8 @@ export class FitnessVoiceCoach {
       },
       isGenerated: false,
       isPlaying: false,
-      hasFailed: false
+      hasFailed: false,
+      priority: 10 // Lower priority - this is just preparation
     });
   }
 
@@ -432,7 +500,8 @@ export class FitnessVoiceCoach {
       },
       isGenerated: false,
       isPlaying: false,
-      hasFailed: false
+      hasFailed: false,
+      priority: 1
     });
 
     // 2. If there's a next exercise, prepare its instruction
@@ -453,7 +522,8 @@ export class FitnessVoiceCoach {
         },
         isGenerated: false,
         isPlaying: false,
-        hasFailed: false
+        hasFailed: false,
+        priority: 10 // Lower priority - this is just preparation
       });
     }
   }
@@ -496,6 +566,7 @@ export class FitnessVoiceCoach {
     }, 1000);
   }
 
+  // FIXED: Enhanced voice trigger checking with proper queue management
   private checkVoiceTriggers(): void {
     if (!this.timerState || !this.isScheduleActive) return;
 
@@ -506,13 +577,15 @@ export class FitnessVoiceCoach {
       voice.triggerTime === currentTime && !voice.isPlaying && !voice.hasFailed
     );
 
+    // Process each voice that should be triggered
     voicesToTrigger.forEach(voice => {
       if (voice.id.endsWith('-prep')) {
         // This is a preparation voice, not meant to be played
         this.prepareVoice(voice);
       } else {
-        // This is a voice that should be played
-        this.playScheduledVoice(voice);
+        // This is a voice that should be played - add to queue
+        voice.isPlaying = true; // Mark as playing to prevent re-triggering
+        this.addVoiceToQueue(voice);
       }
     });
   }
@@ -567,52 +640,41 @@ export class FitnessVoiceCoach {
     }
   }
 
-  private async playScheduledVoice(voice: VoiceSchedule): Promise<void> {
-    if (!this.isEnabled || voice.isPlaying) return;
-
-    voice.isPlaying = true;
-    console.log(`🎤 Playing scheduled voice: ${voice.id}`);
-
-    try {
-      if (voice.audioData && voice.isGenerated) {
-        // Play generated audio
-        await this.playAudioBlob(voice.audioData);
-      } else {
-        // Use fallback system
-        await this.playFallbackAudio(voice);
-      }
-    } catch (error) {
-      console.error(`❌ Failed to play voice ${voice.id}:`, error);
-      voice.hasFailed = true;
-    } finally {
-      voice.isPlaying = false;
-    }
-  }
-
+  // FIXED: Enhanced fallback audio with proper stopping
   private async playFallbackAudio(voice: VoiceSchedule): Promise<void> {
     const fallbackKey = this.getFallbackKey(voice.options.mode, voice.options.messageType);
     const fallbackPath = this.fallbackAudioFiles.get(fallbackKey);
 
     if (fallbackPath) {
       console.log(`🎵 Using fallback audio for ${voice.id}: ${fallbackPath}`);
+      
+      // Always stop current audio first
+      this.stopCurrentAudio();
+      
       const audio = new Audio(fallbackPath);
       audio.volume = 0.8;
       
       return new Promise((resolve) => {
         audio.onended = () => {
-          this.currentUtterance = null;
+          if (this.currentUtterance === audio) {
+            this.currentUtterance = null;
+          }
           resolve();
         };
         audio.onerror = () => {
           console.error(`❌ Fallback audio failed: ${fallbackPath}`);
-          this.currentUtterance = null;
+          if (this.currentUtterance === audio) {
+            this.currentUtterance = null;
+          }
           resolve();
         };
         
         this.currentUtterance = audio;
         audio.play().catch(error => {
           console.error(`❌ Failed to play fallback audio:`, error);
-          this.currentUtterance = null;
+          if (this.currentUtterance === audio) {
+            this.currentUtterance = null;
+          }
           resolve();
         });
       });
@@ -648,19 +710,27 @@ export class FitnessVoiceCoach {
     this.stopVoiceTimer();
   }
 
-  private stopAllVoice(): void {
-    this.stopSpeaking();
-    this.clearVoiceSchedule();
+  // NEW: Clear voice queue
+  private clearVoiceQueue(): void {
+    this.voiceQueue = [];
+    this.isPlayingVoice = false;
   }
 
-  // NEW: Pause/Resume voice schedule (for when workout is paused)
+  private stopAllVoice(): void {
+    this.stopCurrentAudio();
+    this.clearVoiceSchedule();
+    this.clearVoiceQueue();
+  }
+
+  // NEW: Enhanced pause that stops current audio and clears queue
   pauseVoiceSchedule(): void {
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
       this.timerInterval = null;
     }
     this.isScheduleActive = false;
-    this.stopSpeaking();
+    this.stopCurrentAudio();
+    this.clearVoiceQueue();
   }
 
   resumeVoiceSchedule(): void {
@@ -690,11 +760,12 @@ export class FitnessVoiceCoach {
     }
   }
 
-  // Modified: Play pre-generated audio blob
+  // FIXED: Enhanced audio blob playback with better stopping
   private async playAudioBlob(audioBlob: Blob): Promise<void> {
     if (!this.isEnabled) return;
 
-    this.stopSpeaking();
+    // Always stop current audio first
+    this.stopCurrentAudio();
 
     const audioUrl = URL.createObjectURL(audioBlob);
     const audio = new Audio(audioUrl);
@@ -703,13 +774,17 @@ export class FitnessVoiceCoach {
     return new Promise((resolve) => {
       audio.onended = () => {
         URL.revokeObjectURL(audioUrl);
-        this.currentUtterance = null;
+        if (this.currentUtterance === audio) {
+          this.currentUtterance = null;
+        }
         resolve();
       };
 
       audio.onerror = (error) => {
         URL.revokeObjectURL(audioUrl);
-        this.currentUtterance = null;
+        if (this.currentUtterance === audio) {
+          this.currentUtterance = null;
+        }
         console.error('Audio playback error:', error);
         resolve();
       };
@@ -718,23 +793,52 @@ export class FitnessVoiceCoach {
       audio.play().catch((error) => {
         console.error('Failed to play audio:', error);
         URL.revokeObjectURL(audioUrl);
-        this.currentUtterance = null;
+        if (this.currentUtterance === audio) {
+          this.currentUtterance = null;
+        }
         resolve();
       });
     });
   }
 
+  // ENHANCED: Better stopping mechanism
   stopSpeaking(): void {
-    if (this.currentUtterance) {
-      this.currentUtterance.pause();
-      this.currentUtterance.currentTime = 0;
-      this.currentUtterance = null;
-    }
+    this.stopCurrentAudio();
+    this.clearVoiceQueue();
   }
 
   // Test the voice coach
   async testVoice(): Promise<void> {
     const testMessage = generateTestPrompt();
-    await this.speakText(testMessage);
+    
+    // Create a test voice and add to queue
+    const testVoice: VoiceSchedule = {
+      id: 'test-voice',
+      triggerTime: 0,
+      audioData: null,
+      textContent: testMessage,
+      options: {
+        exerciseName: 'Test Exercise',
+        timeRemaining: 10,
+        currentStep: 1,
+        totalSteps: 1,
+        userName: 'Shahar',
+        mode: 'workout',
+        messageType: 'motivation'
+      },
+      isGenerated: false,
+      isPlaying: false,
+      hasFailed: false,
+      priority: 1
+    };
+
+    // Generate audio for test
+    const audioBlob = await this.generateAudioFromText(testMessage);
+    if (audioBlob) {
+      testVoice.audioData = audioBlob;
+      testVoice.isGenerated = true;
+    }
+
+    this.addVoiceToQueue(testVoice);
   }
 } 

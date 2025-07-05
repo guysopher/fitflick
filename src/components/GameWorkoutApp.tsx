@@ -95,11 +95,16 @@ function TikTokVideoPlayer({ exercise, onWorkoutComplete, onClose, backgroundMus
   useEffect(() => {
     voiceCoachRef.current = FitnessVoiceCoach.getInstance();
     
+    // Register audio sources for coordination
+    if (backgroundMusicRef) {
+      voiceCoachRef.current.registerAudioSources(backgroundMusicRef, undefined);
+    }
+    
     // Cleanup: stop voice coach when component unmounts
     return () => {
       voiceCoachRef.current?.stopSpeaking();
     };
-  }, []);
+  }, [backgroundMusicRef]);
 
   // NEW: Initialize voice schedule when phase changes
   useEffect(() => {
