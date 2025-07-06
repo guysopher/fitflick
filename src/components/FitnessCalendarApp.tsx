@@ -6,7 +6,7 @@ import WorkoutOfTheDay from './WorkoutOfTheDay';
 import BackgroundMusic, { BackgroundMusicRef } from './BackgroundMusic';
 import { beginnerToAdvancedWorkout, Exercise } from '@/data/exercises';
 import { CustomWorkout } from '@/data/workouts';
-import TimerVoiceCoach, { VoiceDebugInfo } from '@/services/timerVoiceCoach';
+import { TimerVoiceCoach, VoiceDebugInfo, ActionLogEntry } from '@/services/timerVoiceCoach';
 
 // Import the TikTokVideoPlayer from GameWorkoutApp
 import { videos } from '@/data/videos';
@@ -408,12 +408,14 @@ function TikTokVideoPlayer({
       voiceCoach.current.onTimerUpdate({
         exerciseName: exercise.name,
         mode,
-        timeRemaining: timer,
+        timeRemaining: currentTimer,
         currentStep: currentExerciseIndex,
-        totalSteps: totalExercises
+        totalSteps: totalExercises,
+        nextExercise: nextExercise?.name,
+        exercisesLeft: totalExercises - currentExerciseIndex - 1
       });
     }
-  }, [mode, exercise.name, voiceCoachEnabled, timer]);
+  }, [mode, exercise.name, voiceCoachEnabled, currentTimer, nextExercise?.name, currentExerciseIndex, totalExercises]);
 
   // Handle pause/resume of voice
   React.useEffect(() => {
@@ -423,21 +425,23 @@ function TikTokVideoPlayer({
   }, [isPaused]);
 
   // Update voice coach every second with timer value
-  // React.useEffect(() => {
-  //   if (voiceCoach.current && voiceCoachEnabled && !isPaused) {
-  //     const interval = setInterval(() => {
-  //       voiceCoach.current?.onTimerUpdate({
-  //         exerciseName: exercise.name,
-  //         mode,
-  //         timeRemaining: currentTimer,
-  //         currentStep: currentExerciseIndex,
-  //         totalSteps: totalExercises
-  //       });
-  //     }, 1000);
+  React.useEffect(() => {
+    if (voiceCoach.current && voiceCoachEnabled && !isPaused) {
+      const interval = setInterval(() => {
+        voiceCoach.current?.onTimerUpdate({
+          exerciseName: exercise.name,
+          mode,
+          timeRemaining: currentTimer,
+          currentStep: currentExerciseIndex,
+          totalSteps: totalExercises,
+          nextExercise: nextExercise?.name,
+          exercisesLeft: totalExercises - currentExerciseIndex - 1
+        });
+      }, 1000);
 
-  //     return () => clearInterval(interval);
-  //   }
-  // }, [voiceCoachEnabled, isPaused, exercise.name, mode, currentExerciseIndex, totalExercises]);
+      return () => clearInterval(interval);
+    }
+  }, [voiceCoachEnabled, isPaused, exercise.name, mode, currentExerciseIndex, totalExercises, currentTimer, nextExercise?.name]);
 
   React.useEffect(() => {
     const video = videoRef.current;
@@ -694,19 +698,34 @@ function TikTokVideoPlayer({
             <div>Paused: {isPaused ? '⏸️' : '▶️'}</div>
             {debugInfo && (
               <div className="border-t pt-2 mt-2">
-                <div className="text-xs font-semibold mb-1">Voice System Status:</div>
+                <div className="text-xs font-semibold mb-1">Simple Voice Coach Debug:</div>
                 <div className="text-xs space-y-1">
-                  <div>Current: {debugInfo.currentAction}</div>
-                  <div>Next: {debugInfo.nextAction}</div>
-                  <div>Cache: {debugInfo.cacheStatus === 'ready' ? '✅ Ready' : debugInfo.cacheStatus === 'loading' ? '⏳ Loading' : '❌ Empty'}</div>
-                  <div>Audio: {debugInfo.audioStatus === 'playing' ? '🔊 Playing' : debugInfo.audioStatus === 'error' ? '❌ Error' : '⏸️ Idle'}</div>
-                  <div>Generation: {debugInfo.generationStatus === 'generating' ? '⏳ Generating' : debugInfo.generationStatus === 'ready' ? '✅ Ready' : debugInfo.generationStatus === 'error' ? '❌ Error' : '⏸️ Idle'}</div>
-                  <div>Last Trigger: {debugInfo.lastTriggerTime > 0 ? `${debugInfo.lastTriggerTime}s` : 'None'}</div>
+                  <div>Time: {debugInfo.time}s</div>
+                  <div>Mode: {debugInfo.mode}</div>
+                  <div>Exercise: {debugInfo.exerciseName}</div>
+                  <div>Next Exercise: {debugInfo.nextExercise}</div>
+                  <div className="font-semibold text-yellow-300 mt-2">Current Action:</div>
+                  <div className="pl-2 text-yellow-100">{debugInfo.currentAction}</div>
+                  <div className="font-semibold text-blue-300 mt-2">Next Action:</div>
+                  <div className="pl-2 text-blue-100">{debugInfo.nextAction}</div>
+                  
+                  {debugInfo.actionLog && debugInfo.actionLog.length > 0 && (
+                    <div className="mt-2 border-t pt-2">
+                      <div className="font-semibold text-green-300">📝 Action Log:</div>
+                      <div className="max-h-24 overflow-y-auto">
+                        {debugInfo.actionLog.slice(-5).map((entry, index) => (
+                          <div key={index} className="pl-2 text-green-100 text-xs">
+                            {entry.timestamp}: {entry.action} @ {entry.time}s ({entry.mode})
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
             <div className="text-xs opacity-75 mt-2">
-              Voice triggers at multiples of 10 seconds (10s, 20s, 30s, etc.)
+              Voice Coach: Get Started → Generate → Play → Generate cycle (Debug Only)
             </div>
           </div>
         </div>
@@ -720,17 +739,14 @@ function TikTokVideoPlayer({
             voiceStatus === 'unavailable' ? 'bg-red-500/80 text-white' :
             'bg-yellow-500/80 text-white'
           }`}>
-            {voiceStatus === 'available' ? 
-              (debugInfo?.audioStatus === 'playing' ? '🎤 Playing' : 
-               debugInfo?.generationStatus === 'generating' ? '🎤 Generating' : 
-               '🎤 Ready') :
+            {voiceStatus === 'available' ? '🎤 Ready' :
              voiceStatus === 'unavailable' ? '🎤 Voice Unavailable' :
              '🎤 Loading Voice...'}
           </div>
           {/* Timer-based trigger indicator */}
-          {debugInfo?.nextAction && debugInfo.nextAction !== 'Disabled' && (
+          {debugInfo?.currentAction && debugInfo.currentAction !== 'Waiting' && (
             <div className="text-xs text-white bg-black/50 px-2 py-1 rounded mt-1">
-              {debugInfo.nextAction}
+              {debugInfo.currentAction}
             </div>
           )}
         </div>
