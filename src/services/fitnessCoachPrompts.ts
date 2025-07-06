@@ -21,7 +21,7 @@ export interface PromptContext {
 export function generateInstructionPrompt(context: PromptContext): string {
   const { userName, exerciseName, currentStep, totalSteps } = context;
   
-  return `You are a super fun fitness coach for kids! Give ${userName} a quick, silly explanation of how to do "${exerciseName}" - just 1-2 fun tips! Use kid-friendly language, be playful, and maybe add a funny comparison or sound effect. This is exercise ${currentStep + 1} of ${totalSteps}. Keep it under 20 words and make them giggle!`;
+    return `You're a kids' coach! Cheer on ${userName} doing "${exerciseName}"! Give them tips on how to do the exercise, encouragement or related jokes. Maximum 8 words - be fun!`;
 }
 
 /**
@@ -31,7 +31,7 @@ export function generateInstructionPrompt(context: PromptContext): string {
 export function generateMotivationPrompt(context: PromptContext): string {
   const { userName, exerciseName, timeRemaining } = context;
   
-  return `You're a silly, energetic kids' fitness coach! Give ${userName} a super fun cheer while they do "${exerciseName}" with ${timeRemaining} seconds left! Be goofy, use funny sounds, or pretend they're a superhero/animal. Maximum 5 words - make it bouncy and fun!`;
+    return `You're a kids' coach! Cheer on ${userName} doing "${exerciseName}"! Give them tips on how to do the exercise, encouragement or related jokes. Maximum 8 words - be fun!`;
 }
 
 /**
@@ -41,7 +41,7 @@ export function generateMotivationPrompt(context: PromptContext): string {
 export function generateRestAnnouncementPrompt(context: PromptContext): string {
   const { userName, exerciseName } = context;
   
-  return `You're a playful kids' coach! Celebrate ${userName} finishing "${exerciseName}" with a fun cheer, then tell them it's chill time! Be silly and encouraging. Maybe they're a superhero recharging! Keep it under 12 words and fun!`;
+    return `You're a kids' coach! Prepare ${userName} for rest after "${exerciseName}" - Under 8 words - make rest time fun too!`;
 }
 
 /**
@@ -51,7 +51,7 @@ export function generateRestAnnouncementPrompt(context: PromptContext): string {
 export function generateGetReadyPrompt(context: PromptContext): string {
   const { userName, exerciseName, currentStep, totalSteps } = context;
   
-  return `You're a goofy kids' fitness coach! Get ${userName} super excited for "${exerciseName}" with a silly, fun countdown or cheer! This is exercise ${currentStep + 1} of ${totalSteps}. Use funny sounds, animal noises, or superhero talk. Maximum 8 words - be silly!`;
+  return ``;
 }
 
 /**
@@ -62,7 +62,7 @@ export function generateWorkoutPrompt(context: PromptContext): string {
   const { userName, exerciseName, timeRemaining } = context;
   const phase = timeRemaining > 15 ? 'just getting warmed up' : timeRemaining > 7 ? 'in the zone' : 'almost there';
   
-  return `You're a super silly kids' coach! Cheer on ${userName} doing "${exerciseName}" with ${timeRemaining} seconds left! They're ${phase}! Use funny sounds, animal comparisons, or silly encouragement. Maximum 8 words - be goofy and fun!`;
+  return `You're a kids' coach! Cheer on ${userName} doing "${exerciseName}" with ${timeRemaining} seconds left! They're ${phase}! Give them tips on how to do the exercise, encouragement or related jokes. Maximum 8 words - be fun!`;
 }
 
 /**
@@ -72,7 +72,7 @@ export function generateWorkoutPrompt(context: PromptContext): string {
 export function generateRestPrompt(context: PromptContext): string {
   const { userName, exerciseName } = context;
   
-  return `You're a gentle but fun kids' coach! Prepare ${userName} for rest after "${exerciseName}" - maybe they're a sleepy sloth or recharging robot! Keep it calm but giggly. Under 8 words - make rest time fun too!`;
+  return `You're a kids' coach! Prepare ${userName} for rest after "${exerciseName}" - Under 8 words - make rest time fun too!`;
 }
 
 /**

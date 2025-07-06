@@ -704,6 +704,17 @@ function TikTokVideoPlayer({
                   <div>Mode: {debugInfo.mode}</div>
                   <div>Exercise: {debugInfo.exerciseName}</div>
                   <div>Next Exercise: {debugInfo.nextExercise}</div>
+                  
+                  <div className="mt-2 text-xs">
+                    <span className={`px-2 py-1 rounded ${debugInfo.isGenerating ? 'bg-yellow-600' : 'bg-gray-600'}`}>
+                      {debugInfo.isGenerating ? '🤖 Generating' : '⏸️ Generate Idle'}
+                    </span>
+                    <span className={`ml-2 px-2 py-1 rounded ${debugInfo.isPlaying ? 'bg-green-600' : 'bg-gray-600'}`}>
+                      {debugInfo.isPlaying ? '🔊 Playing' : '⏸️ Audio Idle'}
+                    </span>
+                    <span className="ml-2 text-gray-300">Cache: {debugInfo.cacheSize}</span>
+                  </div>
+
                   <div className="font-semibold text-yellow-300 mt-2">Current Action:</div>
                   <div className="pl-2 text-yellow-100">{debugInfo.currentAction}</div>
                   <div className="font-semibold text-blue-300 mt-2">Next Action:</div>
@@ -725,7 +736,7 @@ function TikTokVideoPlayer({
               </div>
             )}
             <div className="text-xs opacity-75 mt-2">
-              Voice Coach: Get Started → Generate → Play → Generate cycle (Debug Only)
+              Voice Coach: LIVE - Real Text Generation + TTS + Audio Playback
             </div>
           </div>
         </div>

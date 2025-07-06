@@ -34,6 +34,9 @@ export interface VoiceDebugInfo {
     exerciseName: string;
     nextExercise: string;
     actionLog: ActionLogEntry[];
+    isGenerating: boolean;
+    isPlaying: boolean;
+    cacheSize: number;
 }
 
 export class TimerVoiceCoach {
@@ -42,9 +45,14 @@ export class TimerVoiceCoach {
     private debugInfo: VoiceDebugInfo;
     private debugCallbacks: ((info: VoiceDebugInfo) => void)[] = [];
     private lastLoggedAction: string = '';
+    
+    // Audio management
+    private currentAudio: HTMLAudioElement | null = null;
+    private audioCache: Map<string, HTMLAudioElement> = new Map();
+    private isGenerating: boolean = false;
 
     private constructor() {
-        console.log(`🎤 SIMPLE VOICE COACH: Initialized`);
+        console.log(`🎤 VOICE COACH: Initialized with real actions`);
 
         this.debugInfo = {
             time: 0,
@@ -53,7 +61,10 @@ export class TimerVoiceCoach {
             nextAction: 'None',
             exerciseName: '',
             nextExercise: '',
-            actionLog: []
+            actionLog: [],
+            isGenerating: false,
+            isPlaying: false,
+            cacheSize: 0
         };
     }
 
@@ -95,6 +106,11 @@ export class TimerVoiceCoach {
         // Enhanced console log with timing check
         console.log(`🎤 DEBUG: ${roundedTime}s (raw: ${timeRemaining}) | ${mode} | Current: ${this.debugInfo.currentAction} | Next: ${this.debugInfo.nextAction}`);
 
+        // Update status
+        this.debugInfo.isGenerating = this.isGenerating;
+        this.debugInfo.isPlaying = this.currentAudio !== null;
+        this.debugInfo.cacheSize = this.audioCache.size;
+
         // Update debug callbacks
         this.updateDebugInfo();
     }
@@ -112,21 +128,15 @@ export class TimerVoiceCoach {
                 currentAction = 'Generate Rest Voice';
                 shouldLog = true;
             } else if (mode === 'workout') {
-                currentAction = 'Generate Mid Workout Voice';
+                currentAction = 'Generate Rest Voice';
                 shouldLog = true;
             }
-        } else if (timeRemaining === 18) {
-            currentAction = 'Generate Mid Workout Voice';
-            shouldLog = true;
         } else if (timeRemaining === 10) {
             if (mode === 'get-ready') {
                 currentAction = 'Play Get Started';
                 shouldLog = true;
             } else if (mode === 'rest') {
                 currentAction = 'Play Rest';
-                shouldLog = true;
-            } else if (mode === 'workout') {
-                currentAction = 'Play Mid Workout';
                 shouldLog = true;
             }
         } else if (timeRemaining === 20) {
@@ -148,6 +158,7 @@ export class TimerVoiceCoach {
         // Add to log if it's a trigger action and we haven't logged it yet
         if (shouldLog && this.lastLoggedAction !== currentAction) {
             this.addToActionLog(timeRemaining, mode, currentAction);
+            this.executeAction(currentAction, timeRemaining, mode);
             this.lastLoggedAction = currentAction;
         }
 
@@ -169,8 +180,6 @@ export class TimerVoiceCoach {
                 enhancedAction = `Generate Get Started Voice for ${this.debugInfo.exerciseName}`;
             } else if (action === 'Generate Start Workout Voice') {
                 enhancedAction = `Generate Start Workout Voice for ${this.debugInfo.exerciseName}`;
-            } else if (action === 'Generate Mid Workout Voice') {
-                enhancedAction = `Generate Mid Workout Voice for ${this.debugInfo.exerciseName}`;
             } else if (action === 'Generate Rest Voice') {
                 if (mode === 'rest') {
                     enhancedAction = `Generate Rest Voice for ${this.debugInfo.nextExercise}`;
@@ -208,16 +217,14 @@ export class TimerVoiceCoach {
     private getNextAction(timeRemaining: number, mode: string): string {
         // Check for next trigger in descending order
         if (timeRemaining > 20) return 'Play Start Workout at 20s';
-        if (timeRemaining > 18) return 'Generate Mid Workout Voice at 18s';
         if (timeRemaining > 10) {
             if (mode === 'get-ready') return 'Play Get Started at 10s';
             if (mode === 'rest') return 'Play Rest at 10s';
-            if (mode === 'workout') return 'Play Mid Workout at 10s';
         }
         if (timeRemaining > 8) {
             if (mode === 'get-ready') return 'Generate Get Started Voice at 8s';
             if (mode === 'rest') return 'Generate Rest Voice at 8s';
-            if (mode === 'workout') return 'Generate Mid Workout Voice at 8s';
+            if (mode === 'workout') return 'Generate Rest Voice at 8s';
         }
 
         // No more actions in current mode
@@ -242,15 +249,202 @@ export class TimerVoiceCoach {
 
     reset(): void {
         console.log(`🎤 VOICE COACH: Reset`);
+        
+        // Stop current audio
+        if (this.currentAudio) {
+            this.currentAudio.pause();
+            this.currentAudio = null;
+        }
+        
+        // Clear audio cache
+        this.audioCache.clear();
+        this.isGenerating = false;
+        
+        // Reset debug info
         this.debugInfo.time = 0;
         this.debugInfo.currentAction = 'Waiting';
         this.debugInfo.nextAction = 'None';
         this.debugInfo.actionLog = [];
+        this.debugInfo.isGenerating = false;
+        this.debugInfo.isPlaying = false;
+        this.debugInfo.cacheSize = 0;
         this.lastLoggedAction = '';
         this.updateDebugInfo();
     }
 
     stopSpeaking(): void {
         console.log(`🎤 VOICE COACH: Stop`);
+        if (this.currentAudio) {
+            this.currentAudio.pause();
+            this.currentAudio = null;
+        }
+    }
+
+    // Execute real actions
+    private executeAction(action: string, timeRemaining: number, mode: string): void {
+        console.log(`🎤 🎯 EXECUTING: ${action}`);
+
+        if (action.includes('Generate')) {
+            this.handleGenerateAction(action, timeRemaining, mode);
+        } else if (action.includes('Play')) {
+            this.handlePlayAction(action, timeRemaining, mode);
+        }
+    }
+
+    private async handleGenerateAction(action: string, timeRemaining: number, mode: string): Promise<void> {
+        if (this.isGenerating) {
+            console.log(`🎤 ⚠️ GENERATE SKIP: Already generating, skipping ${action}`);
+            return;
+        }
+
+        this.isGenerating = true;
+        console.log(`🎤 🤖 GENERATE START: ${action}`);
+
+        try {
+            // Generate text via API
+            const text = await this.generateText(action, mode);
+            console.log(`🎤 📝 TEXT GENERATED: "${text}"`);
+
+            // Convert to speech via TTS API
+            const audioUrl = await this.generateSpeech(text, action);
+            console.log(`🎤 🔊 SPEECH GENERATED: Audio ready`);
+
+            // Cache the audio for playback
+            const cacheKey = this.getCacheKey(action, mode);
+            const audio = new Audio(audioUrl);
+            this.audioCache.set(cacheKey, audio);
+            console.log(`🎤 💾 CACHED: ${cacheKey}`);
+
+        } catch (error) {
+            console.error(`🎤 ❌ GENERATE ERROR: ${action}`, error);
+        }
+
+        this.isGenerating = false;
+    }
+
+    private handlePlayAction(action: string, timeRemaining: number, mode: string): void {
+        console.log(`🎤 🔊 PLAY START: ${action}`);
+
+        // Stop any currently playing audio
+        if (this.currentAudio) {
+            this.currentAudio.pause();
+        }
+
+        // Use static audio file for Get Started action
+        if (action === 'Play Get Started') {
+            console.log(`🎤 🎵 PLAYING STATIC: Get Ready.mp3`);
+            const audio = new Audio('/audio/Get Ready.mp3');
+            this.playAudio(audio);
+            return;
+        }
+
+        // Try to get cached audio first for other actions
+        const cacheKey = this.getCacheKey(action, mode);
+        let audio = this.audioCache.get(cacheKey);
+
+        if (audio) {
+            console.log(`🎤 💾 PLAYING CACHED: ${cacheKey}`);
+            this.playAudio(audio);
+        } else {
+            console.log(`🎤 ⚠️ NO CACHE: Generating on-demand for ${action}`);
+            this.generateAndPlayOnDemand(action, mode);
+        }
+    }
+
+    private async generateText(action: string, mode: string): Promise<string> {
+        const messageType = this.getMessageType(action, mode);
+        
+        const response = await fetch('/api/generate-pep-talk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                exerciseName: this.debugInfo.exerciseName,
+                timeRemaining: this.debugInfo.time,
+                currentStep: 1,
+                totalSteps: 1,
+                userName: 'Athlete',
+                mode: mode,
+                messageType: messageType
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Text generation failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data.text || this.getFallbackText(action);
+    }
+
+    private async generateSpeech(text: string, action: string): Promise<string> {
+        const response = await fetch('/api/tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text: text,
+                context: {
+                    exercise: this.debugInfo.exerciseName,
+                    mode: this.debugInfo.mode,
+                    timeRemaining: this.debugInfo.time
+                }
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`TTS generation failed: ${response.status}`);
+        }
+
+        const audioBlob = await response.blob();
+        return URL.createObjectURL(audioBlob);
+    }
+
+    private playAudio(audio: HTMLAudioElement): void {
+        audio.currentTime = 0;
+        audio.volume = 0.8;
+        
+        audio.onended = () => {
+            console.log(`🎤 ✅ PLAYBACK COMPLETE`);
+            this.currentAudio = null;
+        };
+
+        audio.onerror = (error) => {
+            console.error(`🎤 ❌ PLAYBACK ERROR:`, error);
+            this.currentAudio = null;
+        };
+
+        audio.play().catch(error => {
+            console.error(`🎤 ❌ PLAY FAILED:`, error);
+        });
+
+        this.currentAudio = audio;
+    }
+
+    private async generateAndPlayOnDemand(action: string, mode: string): Promise<void> {
+        try {
+            const text = await this.generateText(action, mode);
+            const audioUrl = await this.generateSpeech(text, action);
+            const audio = new Audio(audioUrl);
+            this.playAudio(audio);
+        } catch (error) {
+            console.error(`🎤 ❌ ON-DEMAND FAILED: ${action}`, error);
+        }
+    }
+
+    private getCacheKey(action: string, mode: string): string {
+        return `${mode}-${action}-${this.debugInfo.exerciseName}`.replace(/\s+/g, '-').toLowerCase();
+    }
+
+    private getMessageType(action: string, mode: string): string {
+        if (action.includes('Get Started')) return 'instruction';
+        if (action.includes('Start Workout')) return 'motivation';
+        if (action.includes('Rest')) return 'rest-announcement';
+        return 'general';
+    }
+
+    private getFallbackText(action: string): string {
+        if (action.includes('Get Started')) return `Get ready for ${this.debugInfo.exerciseName}! Let's do this!`;
+        if (action.includes('Start Workout')) return `Start ${this.debugInfo.exerciseName} now! You've got this!`;
+        if (action.includes('Rest')) return `Take a break! Great job on ${this.debugInfo.exerciseName}!`;
+        return 'Keep up the great work!';
     }
 }
