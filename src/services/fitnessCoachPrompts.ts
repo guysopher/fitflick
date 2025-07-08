@@ -20,8 +20,8 @@ export interface PromptContext {
  */
 export function generateInstructionPrompt(context: PromptContext): string {
   const { userName, exerciseName, currentStep, totalSteps } = context;
-  
-    return `You're a kids' coach! Cheer on ${userName} doing "${exerciseName}"! Give them tips on how to do the exercise, encouragement or related jokes. Maximum 8 words - be fun!`;
+  return ''
+    // return `You're a kids' coach! Cheer on ${userName} doing "${exerciseName}"! Give them tips on how to do the exercise, encouragement or related jokes. Maximum 8 words - be fun!`;
 }
 
 /**
@@ -30,8 +30,17 @@ export function generateInstructionPrompt(context: PromptContext): string {
  */
 export function generateMotivationPrompt(context: PromptContext): string {
   const { userName, exerciseName, timeRemaining } = context;
-  
-    return `You're a kids' coach! Cheer on ${userName} doing "${exerciseName}"! Give them tips on how to do the exercise, encouragement or related jokes. Maximum 8 words - be fun!`;
+    // return ``;
+
+    return `
+You're a kids fitness coach.
+You are coaching a kid named ${userName} while they are doing a Tabata workout.
+They have just started the exercise ${exerciseName}, and they need to do it for 20 seconds.
+Give them tips on how to properly do the exercise, encouragement or related jokes. Maximum 3 sentences.
+
+Be fun, engaging, supportive, energetic, and professional.
+
+`;
 }
 
 /**
@@ -40,8 +49,16 @@ export function generateMotivationPrompt(context: PromptContext): string {
  */
 export function generateRestAnnouncementPrompt(context: PromptContext): string {
   const { userName, exerciseName } = context;
-  
-    return `You're a kids' coach! Prepare ${userName} for rest after "${exerciseName}" - Under 8 words - make rest time fun too!`;
+    // return ``;
+
+    return `
+You're a kids' fitness coach
+${userName} just finished the exercise "${exerciseName}" and has 10 seconds of rest.
+Give them a fun, engaging, supportive, and professional rest message. Maximum 8 words.
+
+Be fun, engaging, supportive, energetic, and professional.
+
+`;
 }
 
 /**
@@ -49,7 +66,7 @@ export function generateRestAnnouncementPrompt(context: PromptContext): string {
  * Purpose: Silly, exciting countdown to exercise
  */
 export function generateGetReadyPrompt(context: PromptContext): string {
-  const { userName, exerciseName, currentStep, totalSteps } = context;
+//   const { userName, exerciseName, currentStep, totalSteps } = context;
   
   return ``;
 }
@@ -59,10 +76,11 @@ export function generateGetReadyPrompt(context: PromptContext): string {
  * Purpose: Fun encouragement during exercise
  */
 export function generateWorkoutPrompt(context: PromptContext): string {
-  const { userName, exerciseName, timeRemaining } = context;
-  const phase = timeRemaining > 15 ? 'just getting warmed up' : timeRemaining > 7 ? 'in the zone' : 'almost there';
+    return ``;
+//   const { userName, exerciseName, timeRemaining } = context;
+//   const phase = timeRemaining > 15 ? 'just getting warmed up' : timeRemaining > 7 ? 'in the zone' : 'almost there';
   
-  return `You're a kids' coach! Cheer on ${userName} doing "${exerciseName}" with ${timeRemaining} seconds left! They're ${phase}! Give them tips on how to do the exercise, encouragement or related jokes. Maximum 8 words - be fun!`;
+//   return `You're a kids' coach! Cheer on ${userName} doing "${exerciseName}" with ${timeRemaining} seconds left! They're ${phase}! Give them tips on how to do the exercise, encouragement or related jokes. Maximum 8 words - be fun!`;
 }
 
 /**
@@ -72,7 +90,8 @@ export function generateWorkoutPrompt(context: PromptContext): string {
 export function generateRestPrompt(context: PromptContext): string {
   const { userName, exerciseName } = context;
   
-  return `You're a kids' coach! Prepare ${userName} for rest after "${exerciseName}" - Under 8 words - make rest time fun too!`;
+    return ``;
+//   return `You're a kids' coach! Prepare ${userName} for rest after "${exerciseName}" - Under 8 words - make rest time fun too!`;
 }
 
 /**

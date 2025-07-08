@@ -90,6 +90,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (!prompt) {
+      return NextResponse.json({ error: 'No prompt generated' }, { status: 500 });
+    }
+
     try {
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
