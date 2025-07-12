@@ -6,7 +6,7 @@
 export const DEV_CONFIG = {
   // Check if we're in development mode and should bypass authentication
   isDevelopment: process.env.NODE_ENV === 'development',
-  bypassAuth: process.env.BYPASS_AUTH === 'true' || (process.env.NODE_ENV === 'development' && !process.env.GOOGLE_CLIENT_ID),
+  bypassAuth: process.env.BYPASS_AUTH === 'true' || (process.env.NODE_ENV === 'development'),
 };
 
 // Mock user data for development

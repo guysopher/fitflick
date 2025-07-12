@@ -1,4 +1,5 @@
 import { Exercise } from './exercises';
+import { DEV_CONFIG } from '../lib/dev-config';
 
 export interface CustomWorkout {
   id: number;
@@ -427,6 +428,28 @@ export const customWorkouts: CustomWorkout[] = [
   }
 ];
 
+// Development workout - very short for testing
+const devWorkout: CustomWorkout = {
+  id: 999,
+  name: "Dev Mode - Quick Test",
+  description: "Super short workout for development testing: exercise - rest - exercise - done!",
+  exercises: [
+    getExerciseById(2),  // Jumping Jacks (Cardio)
+    getExerciseById(8),  // Classic Crunches (Core)
+  ],
+  structure: {
+    rounds: 1,
+    workDuration: "20 seconds",
+    restDuration: "10 seconds",
+    totalDuration: "30 seconds"
+  },
+  exerciseBreakdown: {
+    cardio: 1,
+    core: 1,
+    fitness: 0
+  }
+};
+
 // Weekly workout schedule - ensures each day gets a different workout
 export const weeklyWorkoutSchedule: DailyWorkoutSchedule[] = [
   {
@@ -468,6 +491,11 @@ export const weeklyWorkoutSchedule: DailyWorkoutSchedule[] = [
 
 // Get workout for today
 export const getTodaysWorkout = (): CustomWorkout => {
+  // Return dev workout if in development mode
+  if (DEV_CONFIG.isDevelopment) {
+    return devWorkout;
+  }
+  
   const today = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const todayName = dayNames[today];

@@ -33,12 +33,17 @@ interface WorkoutPlayerProps {
 }
 
 function WorkoutPlayer({ workout, onWorkoutComplete, onClose, backgroundMusicRef, preferences }: WorkoutPlayerProps) {
+  // Parse workout durations from the structure
+  const workoutDurationSeconds = parseInt(workout.structure.workDuration.split(' ')[0]) || 20;
+  const restDurationSeconds = parseInt(workout.structure.restDuration.split(' ')[0]) || 10;
+  const getReadySeconds = workoutDurationSeconds <= 5 ? 3 : 10; // Shorter get-ready for very short workouts
+  
   // Workout sequence state
   const [workoutStep, setWorkoutStep] = useState(0); // Overall step counter
   const [isWorkoutActive, setIsWorkoutActive] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(10); // Get ready timer
+  const [countdown, setCountdown] = useState<number | null>(getReadySeconds); // Get ready timer
   const [isResting, setIsResting] = useState(false);
-  const [restTimer, setRestTimer] = useState(10);
+  const [restTimer, setRestTimer] = useState(restDurationSeconds);
   const [isPaused, setIsPaused] = useState(false); // Track pause state
 
   // Calculate current exercise based on the pattern
@@ -90,7 +95,7 @@ function WorkoutPlayer({ workout, onWorkoutComplete, onClose, backgroundMusicRef
       // Start rest period before next exercise
       setIsWorkoutActive(false);
       setIsResting(true);
-      setRestTimer(10);
+      setRestTimer(restDurationSeconds);
     } else {
       // Workout completed
       const today = new Date();
@@ -151,9 +156,9 @@ function WorkoutPlayer({ workout, onWorkoutComplete, onClose, backgroundMusicRef
       setIsResting(false);
       setCountdown(null); // Go directly to workout, no get ready after rest
       setIsWorkoutActive(true);
-      setRestTimer(10); // Reset for next rest
+      setRestTimer(restDurationSeconds); // Reset for next rest
     }
-  }, [isResting, restTimer, workoutStep, isPaused]);
+  }, [isResting, restTimer, workoutStep, isPaused, restDurationSeconds]);
 
   // Always use TikTokVideoPlayer with appropriate mode
   const getMode = (): PlayerMode => {
@@ -165,7 +170,7 @@ function WorkoutPlayer({ workout, onWorkoutComplete, onClose, backgroundMusicRef
   const getTimer = () => {
     if (isResting) return restTimer || 0;
     if (!isWorkoutActive) return countdown || 0;
-    return 20; // 20 seconds for workout
+    return workoutDurationSeconds; // Use workout duration from structure
   };
 
   const handleComplete = () => {

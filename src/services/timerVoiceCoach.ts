@@ -37,6 +37,8 @@ export interface VoiceDebugInfo {
     isGenerating: boolean;
     isPlaying: boolean;
     cacheSize: number;
+    currentStep: number;
+    totalSteps: number;
 }
 
 export class TimerVoiceCoach {
@@ -49,6 +51,7 @@ export class TimerVoiceCoach {
     // Audio management
     private currentAudio: HTMLAudioElement | null = null;
     private audioCache: Map<string, HTMLAudioElement> = new Map();
+    private audioNext: HTMLAudioElement | null = null;
     private isGenerating: boolean = false;
 
     private constructor() {
@@ -64,7 +67,9 @@ export class TimerVoiceCoach {
             actionLog: [],
             isGenerating: false,
             isPlaying: false,
-            cacheSize: 0
+            cacheSize: 0,
+            currentStep: 0,
+            totalSteps: 0
         };
     }
 
@@ -83,7 +88,7 @@ export class TimerVoiceCoach {
     onTimerUpdate(options: TimerVoiceOptions): void {
         if (!this.isEnabled) return;
 
-        const { timeRemaining, mode, exerciseName, nextExercise = 'None' } = options;
+        const { timeRemaining, mode, exerciseName, nextExercise = 'None', currentStep, totalSteps } = options;
 
         // Round timeRemaining to handle floating point precision issues
         const roundedTime = Math.round(timeRemaining);
@@ -98,13 +103,15 @@ export class TimerVoiceCoach {
         this.debugInfo.mode = mode;
         this.debugInfo.exerciseName = exerciseName;
         this.debugInfo.nextExercise = nextExercise;
+        this.debugInfo.currentStep = currentStep;
+        this.debugInfo.totalSteps = totalSteps;
 
         // Determine current action based on mode and time
         this.debugInfo.currentAction = this.getCurrentAction(roundedTime, mode);
         this.debugInfo.nextAction = this.getNextAction(roundedTime, mode);
 
         // Enhanced console log with timing check
-        console.log(`🎤 DEBUG: ${roundedTime}s (raw: ${timeRemaining}) | ${mode} | Current: ${this.debugInfo.currentAction} | Next: ${this.debugInfo.nextAction}`);
+        console.debug(`🎤 DEBUG: ${roundedTime}s (raw: ${timeRemaining}) | ${mode} | Current: ${this.debugInfo.currentAction} | Next: ${this.debugInfo.nextAction}`);
 
         // Update status
         this.debugInfo.isGenerating = this.isGenerating;
@@ -115,7 +122,7 @@ export class TimerVoiceCoach {
         this.updateDebugInfo();
     }
 
-            private getCurrentAction(timeRemaining: number, mode: string): string {
+    private getCurrentAction(timeRemaining: number, mode: string): string {
         let currentAction = '';
         let shouldLog = false;
 
@@ -155,10 +162,17 @@ export class TimerVoiceCoach {
             }
         }
 
+        const nextMode = (mode === 'get-ready' || mode === 'rest') ? 'workout' : 'rest';
+        const nextAction = mode === 'workout' ? 'Generate Rest Voice' : 'Generate Start Workout Voice';
+        const nextTimeRemaining = mode === 'workout' ? 10 : 20;
+        const nextExercise = mode === 'get-ready' ? this.debugInfo.exerciseName : this.debugInfo.nextExercise;
+
         // Add to log if it's a trigger action and we haven't logged it yet
         if (shouldLog && this.lastLoggedAction !== currentAction) {
             this.addToActionLog(timeRemaining, mode, currentAction);
             this.executeAction(currentAction, timeRemaining, mode);
+            this.handleGenerateAction(nextAction, nextTimeRemaining, nextMode, nextExercise, this.debugInfo.currentStep, this.debugInfo.totalSteps);
+
             this.lastLoggedAction = currentAction;
         }
 
@@ -258,6 +272,7 @@ export class TimerVoiceCoach {
         
         // Clear audio cache
         this.audioCache.clear();
+        this.audioNext = null;
         this.isGenerating = false;
         
         // Reset debug info
@@ -285,13 +300,12 @@ export class TimerVoiceCoach {
         console.log(`🎤 🎯 EXECUTING: ${action}`);
 
         if (action.includes('Generate')) {
-            this.handleGenerateAction(action, timeRemaining, mode);
         } else if (action.includes('Play')) {
             this.handlePlayAction(action, timeRemaining, mode);
         }
     }
 
-    private async handleGenerateAction(action: string, timeRemaining: number, mode: string): Promise<void> {
+    private async handleGenerateAction(action: string, timeRemaining: number, mode: string, nextExercise: string, currentStep: number, totalSteps: number): Promise<void> {
         if (this.isGenerating) {
             console.log(`🎤 ⚠️ GENERATE SKIP: Already generating, skipping ${action}`);
             return;
@@ -302,7 +316,7 @@ export class TimerVoiceCoach {
 
         try {
             // Generate text via API
-            const text = await this.generateText(action, mode);
+            const text = await this.generateText(action, mode, timeRemaining, nextExercise, currentStep, totalSteps);
             console.log(`🎤 📝 TEXT GENERATED: "${text}"`);
 
             // Convert to speech via TTS API
@@ -313,6 +327,7 @@ export class TimerVoiceCoach {
             const cacheKey = this.getCacheKey(action, mode);
             const audio = new Audio(audioUrl);
             this.audioCache.set(cacheKey, audio);
+            this.audioNext = audio;
             console.log(`🎤 💾 CACHED: ${cacheKey}`);
 
         } catch (error) {
@@ -340,29 +355,29 @@ export class TimerVoiceCoach {
 
         // Try to get cached audio first for other actions
         const cacheKey = this.getCacheKey(action, mode);
-        let audio = this.audioCache.get(cacheKey);
+        let audio = this.audioCache.get(cacheKey) || this.audioNext;
 
         if (audio) {
             console.log(`🎤 💾 PLAYING CACHED: ${cacheKey}`);
             this.playAudio(audio);
         } else {
-            console.log(`🎤 ⚠️ NO CACHE: Generating on-demand for ${action}`);
+            console.log(`🎤 ⚠️ NO CACHE ${cacheKey}: Generating on-demand for ${action}`);
             this.generateAndPlayOnDemand(action, mode);
         }
     }
 
-    private async generateText(action: string, mode: string): Promise<string> {
+    private async generateText(action: string, mode: string, timeRemaining: number, nextExercise: string, currentStep: number, totalSteps: number): Promise<string> {
         const messageType = this.getMessageType(action, mode);
         
         const response = await fetch('/api/generate-pep-talk', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                exerciseName: this.debugInfo.exerciseName,
-                timeRemaining: this.debugInfo.time,
-                currentStep: 1,
-                totalSteps: 1,
-                userName: 'Athlete',
+                exerciseName: nextExercise,
+                timeRemaining: timeRemaining,
+                currentStep: currentStep,
+                totalSteps: totalSteps,
+                userName: 'Shahar',
                 mode: mode,
                 messageType: messageType
             }),
@@ -401,6 +416,7 @@ export class TimerVoiceCoach {
     private playAudio(audio: HTMLAudioElement): void {
         audio.currentTime = 0;
         audio.volume = 0.8;
+        audio.playbackRate = 1.1;
         
         audio.onended = () => {
             console.log(`🎤 ✅ PLAYBACK COMPLETE`);
@@ -421,7 +437,7 @@ export class TimerVoiceCoach {
 
     private async generateAndPlayOnDemand(action: string, mode: string): Promise<void> {
         try {
-            const text = await this.generateText(action, mode);
+            const text = await this.generateText(action, mode, this.debugInfo.time, this.debugInfo.nextExercise, this.debugInfo.currentStep, this.debugInfo.totalSteps);
             const audioUrl = await this.generateSpeech(text, action);
             const audio = new Audio(audioUrl);
             this.playAudio(audio);
