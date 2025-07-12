@@ -880,7 +880,7 @@ export default function FitnessCalendarApp() {
   const handleSuccessShare = () => {
     if (!selectedWorkout) return;
     
-    const message = `🎉 Just completed ${selectedWorkout.name}! 💪 Crushed ${completionData?.exercisesCompleted || 0} exercises and burned ${completionData?.caloriesBurned || 0} calories! 🔥`;
+    const message = `I just completed ${selectedWorkout.name}! 💪 Crushed ${completionData?.exercisesCompleted || 0} exercises and burned ${completionData?.caloriesBurned || 0} calories! 🔥`;
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
