@@ -36,7 +36,7 @@ function WorkoutPlayer({ workout, onWorkoutComplete, onClose, backgroundMusicRef
   // Parse workout durations from the structure
   const workoutDurationSeconds = parseInt(workout.structure.workDuration.split(' ')[0]) || 20;
   const restDurationSeconds = parseInt(workout.structure.restDuration.split(' ')[0]) || 10;
-  const getReadySeconds = workoutDurationSeconds <= 5 ? 3 : 10; // Shorter get-ready for very short workouts
+  const getReadySeconds = 15; // 15 seconds get-ready time
   
   // Workout sequence state
   const [workoutStep, setWorkoutStep] = useState(0); // Overall step counter

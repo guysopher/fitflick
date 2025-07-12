@@ -127,28 +127,28 @@ export class TimerVoiceCoach {
         let shouldLog = false;
 
         // Exact timing logic as specified
-        if (timeRemaining === 8) {
-            if (mode === 'get-ready') {
-                currentAction = 'Generate Get Started Voice';
-                shouldLog = true;
-            } else if (mode === 'rest') {
-                currentAction = 'Generate Rest Voice';
-                shouldLog = true;
-            } else if (mode === 'workout') {
-                currentAction = 'Generate Rest Voice';
-                shouldLog = true;
-            }
-        } else if (timeRemaining === 10) {
-            if (mode === 'get-ready') {
+        // if (timeRemaining === 8) {
+        //     if (mode === 'get-ready') {
+        //         currentAction = 'Generate Get Started Voice';
+        //         shouldLog = true;
+        //     } else if (mode === 'rest') {
+        //         currentAction = 'Generate Rest Voice';
+        //         shouldLog = true;
+        //     } else if (mode === 'workout') {
+        //         currentAction = 'Generate Rest Voice';
+        //         shouldLog = true;
+        //     }
+         if (timeRemaining >= 10) {
+            if (mode === 'get-ready' && timeRemaining === 15) {
                 currentAction = 'Play Get Started';
                 shouldLog = true;
-            } else if (mode === 'rest') {
+            } else if (mode === 'rest' && timeRemaining === 10) {
                 currentAction = 'Play Rest';
                 shouldLog = true;
-            }
-        } else if (timeRemaining === 20) {
+            } else if (mode === 'workout' && timeRemaining === 20) {
             currentAction = 'Play Start Workout';
             shouldLog = true;
+            }
         } else {
             // Default states when not on trigger times
             if (mode === 'workout') {
@@ -416,7 +416,7 @@ export class TimerVoiceCoach {
     private playAudio(audio: HTMLAudioElement): void {
         audio.currentTime = 0;
         audio.volume = 0.8;
-        audio.playbackRate = 1.1;
+        audio.playbackRate = 1;
         
         audio.onended = () => {
             console.log(`🎤 ✅ PLAYBACK COMPLETE`);
