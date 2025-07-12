@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Droplets, Share, Play, Pause, RotateCcw, Volume2, VolumeX, Flame, Target, Clock, ArrowLeft, User, Settings, Trophy, TrendingUp, Zap } from 'lucide-react';
 import { exercises, Exercise } from '@/data/exercises';
 import { videos } from '@/data/videos';
-import TimerVoiceCoach from '@/services/timerVoiceCoach';
+import { TimerVoiceCoach } from '@/services/timerVoiceCoach';
 import BackgroundMusic, { BackgroundMusicRef } from './BackgroundMusic';
 import WorkoutSuccess from './WorkoutSuccess';
 
@@ -845,7 +845,12 @@ export default function GameWorkoutApp() {
       <WorkoutSuccess
         exercise={selectedExercise}
         completionData={completionData}
-        userProgress={userProgress}
+        userProgress={{
+          ...userProgress,
+          level: Math.floor(userProgress.totalWorkouts / 5) + 1,
+          weeklyGoal: 5,
+          weeklyProgress: userProgress.totalWorkouts % 7
+        }}
         todayJoke={showJoke ? todayJoke : undefined}
         onClose={() => {
           setCurrentScreen('home');
@@ -853,6 +858,7 @@ export default function GameWorkoutApp() {
           setShowJoke(false);
         }}
         onShare={shareWorkout}
+        workoutType="single"
       />
     );
   }

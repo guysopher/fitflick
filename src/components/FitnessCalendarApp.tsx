@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react';
 import CalendarView from './CalendarView';
 import WorkoutOfTheDay from './WorkoutOfTheDay';
 import BackgroundMusic, { BackgroundMusicRef } from './BackgroundMusic';
+import WorkoutSuccess from './WorkoutSuccess';
 import { beginnerToAdvancedWorkout, Exercise } from '@/data/exercises';
 import { CustomWorkout } from '@/data/workouts';
 import { TimerVoiceCoach, VoiceDebugInfo, ActionLogEntry } from '@/services/timerVoiceCoach';
@@ -26,7 +27,7 @@ const getVideoMetadata = (videoFileName: string) => {
 // Workout Player Component (extracted from GameWorkoutApp)
 interface WorkoutPlayerProps {
   workout: CustomWorkout;
-  onWorkoutComplete: () => void;
+  onWorkoutComplete: (completionData: any) => void;
   onClose: () => void;
   backgroundMusicRef?: React.RefObject<BackgroundMusicRef | null>;
   preferences: { coachEnabled: boolean; musicEnabled: boolean };
@@ -121,7 +122,22 @@ function WorkoutPlayer({ workout, onWorkoutComplete, onClose, backgroundMusicRef
       }
       
       localStorage.setItem('completedWorkouts', JSON.stringify(completedWorkouts));
-      onWorkoutComplete();
+      
+      // Calculate workout completion data
+      const totalDuration = totalSteps * (workoutDurationSeconds + restDurationSeconds);
+      const coinsEarned = Math.floor(totalSteps * 15); // 15 coins per exercise
+      const caloriesBurned = Math.floor(totalDuration * 0.2); // Rough estimate
+      
+      const completionData = {
+        coinsEarned,
+        caloriesBurned,
+        actualDuration: totalDuration,
+        exercisesCompleted: totalSteps,
+        totalWorkoutTime: totalDuration,
+        exerciseBreakdown: workout.exerciseBreakdown
+      };
+      
+      onWorkoutComplete(completionData);
     }
   };
 
@@ -789,13 +805,32 @@ function TikTokVideoPlayer({
   );
 }
 
-type ViewMode = 'calendar' | 'workout' | 'player';
+type ViewMode = 'calendar' | 'workout' | 'player' | 'success';
+
+const jokes = [
+  "Why don't hamsters ever get lost? Because they always know which wheel to turn! 🐹",
+  "What's a dog's favorite type of music? Anything with a good BARK-beat! 🎵",
+  "Why did the fitness instructor bring a ladder to class? To reach new heights! 🪜",
+  "What do you call a hamster who loves to exercise? A gym-ster! 💪",
+  "Why don't dogs make good DJs? They always paws the music! 🎧",
+  "What's the best thing about Switzerland? I don't know, but the flag is a big plus! 🇨🇭",
+  "Why did the scarecrow win an award? He was outstanding in his field! 🏆",
+  "What do you call a bear with no teeth? A gummy bear! 🐻"
+];
 
 export default function FitnessCalendarApp() {
   const [currentView, setCurrentView] = useState<ViewMode>('calendar');
   const [selectedWorkout, setSelectedWorkout] = useState<CustomWorkout | null>(null);
+  const [completionData, setCompletionData] = useState<any>(null);
   const [workoutPreferences, setWorkoutPreferences] = useState<{ coachEnabled: boolean; musicEnabled: boolean }>({ coachEnabled: true, musicEnabled: true });
+  const [todayJoke, setTodayJoke] = useState('');
   const backgroundMusicRef = useRef<BackgroundMusicRef>(null);
+
+  // Set random joke on component mount
+  React.useEffect(() => {
+    const randomJoke = jokes[Math.floor(Math.random() * jokes.length)];
+    setTodayJoke(randomJoke);
+  }, []);
 
   const handleWorkoutSelect = () => {
     setCurrentView('workout');
@@ -822,9 +857,9 @@ export default function FitnessCalendarApp() {
     setCurrentView('player');
   };
 
-  const handleWorkoutComplete = () => {
-    setSelectedWorkout(null);
-    setCurrentView('calendar');
+  const handleWorkoutComplete = (workoutCompletionData: any) => {
+    setCompletionData(workoutCompletionData);
+    setCurrentView('success');
   };
 
   const handleBackToCalendar = () => {
@@ -834,6 +869,20 @@ export default function FitnessCalendarApp() {
   const handleClosePlayer = () => {
     setSelectedWorkout(null);
     setCurrentView('workout');
+  };
+
+  const handleSuccessClose = () => {
+    setSelectedWorkout(null);
+    setCompletionData(null);
+    setCurrentView('calendar');
+  };
+
+  const handleSuccessShare = () => {
+    if (!selectedWorkout) return;
+    
+    const message = `🎉 Just completed ${selectedWorkout.name}! 💪 Crushed ${completionData?.exercisesCompleted || 0} exercises and burned ${completionData?.caloriesBurned || 0} calories! 🔥`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
   };
 
   return (
@@ -854,6 +903,28 @@ export default function FitnessCalendarApp() {
           onClose={handleClosePlayer}
           backgroundMusicRef={backgroundMusicRef}
           preferences={workoutPreferences}
+        />
+      ) : currentView === 'success' && selectedWorkout && completionData ? (
+        <WorkoutSuccess
+          exercise={{
+            name: selectedWorkout.name,
+            difficulty: 'Mixed',
+            targetMuscles: ['Full Body', 'Core', 'Cardio'],
+            category: 'Full Workout'
+          }}
+          completionData={completionData}
+          userProgress={{
+            streak: Math.floor(Math.random() * 10) + 1, // Mock data for now
+            totalWorkouts: Math.floor(Math.random() * 50) + 1,
+            coins: Math.floor(Math.random() * 1000) + 100,
+            level: Math.floor(Math.random() * 5) + 1,
+            weeklyGoal: 5,
+            weeklyProgress: Math.floor(Math.random() * 5) + 1
+          }}
+          todayJoke={todayJoke}
+          onClose={handleSuccessClose}
+          onShare={handleSuccessShare}
+          workoutType="multi"
         />
       ) : currentView === 'workout' ? (
         <WorkoutOfTheDay

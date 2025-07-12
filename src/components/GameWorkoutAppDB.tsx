@@ -7,7 +7,7 @@ import { useUserData } from '@/hooks/useUserData';
 import { useSession } from 'next-auth/react';
 import BackgroundMusic, { BackgroundMusicRef } from './BackgroundMusic';
 import WorkoutSuccess from './WorkoutSuccess';
-import TimerVoiceCoach from '@/services/timerVoiceCoach';
+import { TimerVoiceCoach } from '@/services/timerVoiceCoach';
 
 const jokes = [
   "Why don't hamsters ever get lost? Because they always know which wheel to turn! 🐹",
@@ -462,7 +462,12 @@ export default function GameWorkoutAppDB() {
       <WorkoutSuccess
         exercise={selectedExercise}
         completionData={completionData}
-        userProgress={userProgress || undefined}
+        userProgress={userProgress ? {
+          ...userProgress,
+          level: Math.floor(userProgress.totalWorkouts / 5) + 1,
+          weeklyGoal: 5,
+          weeklyProgress: userProgress.totalWorkouts % 7
+        } : undefined}
         todayJoke={showJoke ? todayJoke : undefined}
         onClose={() => {
           setCurrentScreen('home');
@@ -471,6 +476,7 @@ export default function GameWorkoutAppDB() {
           setShowJoke(false);
         }}
         onShare={shareWorkout}
+        workoutType="single"
       />
     );
   }
