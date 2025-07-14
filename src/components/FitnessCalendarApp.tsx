@@ -356,7 +356,8 @@ function TikTokVideoPlayer({
       case 'get-ready':
         return '/videos/Ready.mp4';
       case 'rest':
-        return '/videos/Resting.mp4';
+        // Show next exercise video during rest, fallback to resting video if no next exercise
+        return nextExercise?.videoUrl || '/videos/Resting.mp4';
       case 'workout':
       default:
         return exercise.videoUrl;
@@ -601,27 +602,20 @@ function TikTokVideoPlayer({
 
   // Get title based on mode
   const getTitle = () => {
-    switch (mode) {
-      case 'get-ready':
-        return 'Get Ready!';
-      case 'rest':
-        return 'Rest Time';
-      case 'workout':
-      default:
-        return exercise.name;
-    }
+    // Always show exercise counter
+    return `Exercise ${currentExerciseIndex + 1} / ${totalExercises}`;
   };
 
   // Get subtitle based on mode
   const getSubtitle = () => {
     switch (mode) {
       case 'get-ready':
-        return `Exercise ${currentExerciseIndex + 1} of ${totalExercises}: ${exercise.name}`;
+        return `Get Ready! - ${exercise.name}`;
       case 'rest':
-        return nextExerciseName ? `Next: ${nextExerciseName}` : null;
+        return nextExerciseName ? `Rest Time - Next: ${nextExerciseName}` : 'Rest Time';
       case 'workout':
       default:
-        return null;
+        return exercise.name;
     }
   };
 
