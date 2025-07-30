@@ -340,11 +340,11 @@ function TikTokVideoPlayer({
 
       // 3 short ascending beeps with higher volume
       for (let i = 0; i < 3; i++) {
-        makeBeep(now + i * gap, shortDuration, frequencies[i], 0.4);
+        makeBeep(now + i * gap, shortDuration, frequencies[i], 0.7);
       }
 
       // 1 final beep with higher pitch and volume
-      makeBeep(now + 3 * gap, longDuration, frequencies[3], 0.5);
+      makeBeep(now + 3 * gap, longDuration, frequencies[3], 0.9);
     } catch (error) {
       console.log('Audio context not available:', error);
     }
