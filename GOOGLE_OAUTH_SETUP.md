@@ -19,7 +19,7 @@ To enable Google login for your FitFlick app, you need to set up Google OAuth cr
 4. For **Application type**, select **Web application**
 5. Add these **Authorized redirect URIs**:
    - `http://localhost:3000/api/auth/callback/google` (for development)
-   - `https://yourdomain.com/api/auth/callback/google` (for production)
+   - `https://fitflick-gamma.vercel.app//api/auth/callback/google` (for production)
 
 ## Step 3: Create Environment Variables
 

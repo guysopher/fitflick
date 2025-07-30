@@ -338,13 +338,13 @@ function TikTokVideoPlayer({
       // Musical frequencies (C4, E4, G4 for the short beeps, C5 for final)
       const frequencies = [261.63, 329.63, 392.00, 523.25]; // C-E-G-C chord
 
-      // 3 short ascending beeps with lower volume
+      // 3 short ascending beeps with higher volume
       for (let i = 0; i < 3; i++) {
-        makeBeep(now + i * gap, shortDuration, frequencies[i], 0.2);
+        makeBeep(now + i * gap, shortDuration, frequencies[i], 0.4);
       }
 
-      // 1 final beep with slightly higher pitch and volume
-      makeBeep(now + 3 * gap, longDuration, frequencies[3], 0.25);
+      // 1 final beep with higher pitch and volume
+      makeBeep(now + 3 * gap, longDuration, frequencies[3], 0.5);
     } catch (error) {
       console.log('Audio context not available:', error);
     }
