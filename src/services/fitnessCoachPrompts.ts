@@ -19,7 +19,7 @@ export interface PromptContext {
  * Purpose: Explain proper form with fun, kid-friendly language
  */
 export function generateInstructionPrompt(context: PromptContext): string {
-  const { userName, exerciseName, currentStep, totalSteps } = context;
+  void context; // satisfy no-unused-params
   return ''
     // return `You're a kids' coach! Cheer on ${userName} doing "${exerciseName}"! Give them tips on how to do the exercise, encouragement or related jokes. Maximum 8 words - be fun!`;
 }
@@ -29,19 +29,31 @@ export function generateInstructionPrompt(context: PromptContext): string {
  * Purpose: Silly, energetic pep talk to keep kids moving
  */
 export function generateMotivationPrompt(context: PromptContext): string {
-  const { userName, exerciseName, timeRemaining } = context;
-    // return ``;
+  const { userName, exerciseName } = context;
+    // Stateless variety seed: derived from current time + context so every run differs
+    const seed = `${Date.now()}-${context.currentStep}-${context.totalSteps}-${exerciseName.length}`;
 
     return `
 You're a kids fitness coach.
 You are coaching a kid named ${userName} while they are doing a Tabata workout.
 They have just started the exercise ${exerciseName}, and they need to do it for 20 seconds.
+
 Give them some words of encouragement, and entertain them with one fun fact.
-The fun fact should be related to science or nature, and fit a 10 yo kid. 
-Maximum 3 sentences.
+The fun fact must be related to science or nature, and fit a 10-year-old.
+To GUARANTEE variety on every run without using stored history, follow this seed rule:
+
+SEED: ${seed}
+- Convert the SEED to a number S by summing the character codes.
+- Pick a domain by DomainIndex = S mod 7 from this list (0-based): [space, oceans, animals, plants, weather, rocks & volcanoes, human body].
+- Pick a starting letter by LetterIndex = S mod 26 (A=0..Z=25). Your fun fact’s first word must start with that letter.
+- If a good fact does not fit that exact letter, move to the next letter (wrap after Z) and use that.
+
+Constraints:
+- 1 unique fun fact only (no lists). Keep it strictly true and specific.
+- Maximum 3 sentences. Include one concrete detail (a number, a proper noun, or a measurable quantity).
+- Vary wording each time; do not reuse prior phrasing.
 
 Be fun, engaging, supportive, energetic, and professional.
-
 `;
 }
 
@@ -68,6 +80,7 @@ Be fun, engaging, supportive, energetic, and professional.
  * Purpose: Silly, exciting countdown to exercise
  */
 export function generateGetReadyPrompt(context: PromptContext): string {
+  void context; // satisfy no-unused-params
 //   const { userName, exerciseName, currentStep, totalSteps } = context;
   
   return ``;
@@ -78,6 +91,7 @@ export function generateGetReadyPrompt(context: PromptContext): string {
  * Purpose: Fun encouragement during exercise
  */
 export function generateWorkoutPrompt(context: PromptContext): string {
+    void context; // satisfy no-unused-params
     return ``;
 //   const { userName, exerciseName, timeRemaining } = context;
 //   const phase = timeRemaining > 15 ? 'just getting warmed up' : timeRemaining > 7 ? 'in the zone' : 'almost there';
@@ -90,8 +104,7 @@ export function generateWorkoutPrompt(context: PromptContext): string {
  * Purpose: Fun, calming recovery message
  */
 export function generateRestPrompt(context: PromptContext): string {
-  const { userName, exerciseName } = context;
-  
+    void context; // satisfy no-unused-params
     return ``;
 //   return `You're a kids' coach! Prepare ${userName} for rest after "${exerciseName}" - Under 8 words - make rest time fun too!`;
 }
