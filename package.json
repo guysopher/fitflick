@@ -31,7 +31,8 @@
     "react": "^19.0.0",
     "react-confetti": "^6.4.0",
     "react-dom": "^19.0.0",
-    "three": "^0.177.0"
+    "three": "^0.177.0",
+    "resend": "^3.4.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

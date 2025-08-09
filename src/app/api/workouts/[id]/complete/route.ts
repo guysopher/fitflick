@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, workouts, workoutExercises, users, userExerciseStats, userDailyStats } from '@/lib/db';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
+import { sendWorkoutCompletedEmail } from '@/lib/email';
 
 export async function POST(
   request: NextRequest,
@@ -173,6 +174,12 @@ export async function POST(
         },
       },
     });
+
+    // Send notification email (best-effort; does not block response)
+    sendWorkoutCompletedEmail({
+      childName: user.name || user.email,
+      workout: completedWorkout,
+    }).catch((err) => console.error('Email notify error:', err));
 
     return NextResponse.json({ 
       workout: completedWorkout,

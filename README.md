@@ -107,6 +107,11 @@ FitFlick now includes Google Authentication to personalize your fitness journey 
    GOOGLE_CLIENT_SECRET=your_google_client_secret
    NEXTAUTH_SECRET=your_generated_secret
    NEXTAUTH_URL=http://localhost:3000
+    
+    # Email notifications (optional)
+    RESEND_API_KEY=your_resend_api_key
+    EMAIL_FROM=FitFlick <notifications@your-domain.com>
+    WORKOUT_NOTIFY_EMAIL=parent@example.com
    ```
    
    **Generate NextAuth Secret:**
